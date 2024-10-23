@@ -99,4 +99,3 @@ public:
 	//credential validation
 };
 
-cout << "why is nothing happening" << endl;
