@@ -4,16 +4,20 @@ using namespace std;
 
 class ATM {
 private:
-	const int _serial_number; //6 digit
-	bool _single_bank; //True for single bank, False for multi-bank
-	bool _unilingual; //True for English only, False for English or Korean
-	int _available_cash;
-	string _transaction_history;
-	Bank* bank;
+	const int _serialNumber; //6 digit
+	bool _atmType; //True for single bank, False for multi-bank
+	bool _language; //True for English only, False for English or Korean
+	int _availableCash; //array 1000, 5000, 10000, 50000
+	Bank* primaryBank;
+	const int maxWithdrawlAmount=500000;
+	const int maxWithdrawlRepeat = 3;
 	bool _status;
-	Account* current_account;
 public:
-	ATM(int serial_number, bool single_bank, bool unilingual, int deposit_cash);
+	bool validateCard(bool atmType) {//argument: +card
+		if (atmType == true) {
+			//if card belongs to primary bank
+		}
+	}
 	bool start();
 	bool correct_user("pw type", "pw type");
 	bool perform_transaction(type, double);
