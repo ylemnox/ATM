@@ -13,12 +13,54 @@ private:
 	const int maxWithdrawlRepeat = 3;
 	bool _status;
 public:
-	bool validateCard(bool atmType) {//argument: +card
-		if (atmType == true) {
+	bool validateCard() {//argument: +card
+		if (_atmType) { //single bank
 			//if card belongs to primary bank
+				//return true;
+			//else return "error message"
+		}
+		else { //multitbank
+			//return true;
 		}
 	}
-	bool start();
+	void startSession() {//starts when card is inserted
+		if (!_language) {
+			cout << "Select Language" << endl;
+			// what should I do
+			if (validateCard()) {
+				Session* currentSession; //heap allocation required
+				int trial;
+				for (trial = 0; trial < 3; trial++) {
+					cout << "Write your PIN" << 3 - trial << "chances left\n";
+					int inPIN;
+					cin >> inPIN;
+					if (inPIN != card.PIN) { //card or account?
+						cout << "Wrong PIN" << endl;
+					}
+					else break;
+				}
+				if (trial == 3) {
+					endSession();
+				}
+				else;
+			}
+			else endSession();
+		}
+	}
+
+	void endSession() {
+		delete currentSession;
+		cout << "Transaction Summary" << endl;
+		cout << "Take your card" << endl;
+		//how should I implement card returning
+		cout << "Thanks for using our ATM" << endl;
+		//reset session-speicific counters
+	}
+
+	void handleDeposit(int desiredAmount) {
+		
+					
+
 	bool correct_user("pw type", "pw type");
 	bool perform_transaction(type, double);
 	void end();
