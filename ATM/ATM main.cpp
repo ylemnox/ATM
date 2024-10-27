@@ -244,7 +244,7 @@ Card::Card(string cardnum, string cardbankname, string accountnum, string pw, bo
 	password = pw;
 	AdminCard = isadmincard;
 }
-
+/*Card Test Cases
 void testCase1_BasicCardValidation() {
 	cout << "\n=== Test Case 1: Basic Card Validation ===\n";
 
@@ -362,7 +362,8 @@ int main() {
 	cout << "\nAll card tests completed successfully!\n";
 	return 0;
 }
-/*Cash Test Case
+*/
+/*Cash Test Cases
 // Test Case 1: Basic Operations with Valid Denomination
 void testCase1() {
 	cout << "Test Case 1: Basic Operations with Valid Denomination" << endl;
