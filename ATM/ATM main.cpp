@@ -1,6 +1,7 @@
 #include <iostream>
-#include <string>;
+#include <string>
 #include <cassert>
+#include <vector>
 using namespace std;
 /*
 class ATM {
@@ -244,6 +245,74 @@ Card::Card(string cardnum, string cardbankname, string accountnum, string pw, bo
 	password = pw;
 	AdminCard = isadmincard;
 }
+class Account {
+private:
+	string accountBankName;
+	string accountNumber;
+	string ownerName;
+	long balance;
+	vector <Transaction*> transactionHistory; //transaction account implemented on 10/29
+	bool primaryBank;
+
+	bool validateAccountNumber() {
+		if (atoi(accountNumber.c_str()) != 0 && accountNumber.length() == 12) return true;
+		else return false;
+	}
+
+	bool deductFee(long feeAmount) {
+		if (balance >= feeAmount) {
+			balance -= feeAmount;
+			return true;
+		}
+		return false;
+	}
+public:
+	Account(string bankname, string accountnum, string owner, long initbalance);
+	string getAccountBankName() { return accountBankName; }
+	string getAccountNumber() { return accountNumber; }
+	string getOwnerName() { return ownerName; }
+	long getBalance() { return balance; }
+	vector<Transaction*> getTransactionHistory() { return transactionHistory; }
+	bool isPrimaryBank() const { return primaryBank == 0 ? true : false; }
+	bool deposit(long in_amount, Transaction* transaction) {
+		if (in_amount <= 0) return false;
+		balance += in_amount;
+		addTransaction(transaction);
+		return true;
+		
+	}
+	bool transfer(Account* receiverAccount, long transAmount, Transaction* transaction) {
+		if (balance < transAmount || transAmount<=0) return false;
+		if (!receiverAccount) return false;
+
+		balance -= transAmount;
+		receiverAccount->deposit(transAmount, transaction);//receiver transaction으로 정해야될듯한데 어케하노
+		addTransaction(transaction);
+		return true;
+	}
+	bool withdraw(long outAmount, Transaction* transaction) {
+		if (balance < outAmount || outAmount<=0) return false;
+
+		balance -= outAmount;
+		addTransaction(transaction);
+		return true;
+	}
+
+	void addTransaction(Transaction* transaction) {
+		if (transaction) {
+			transactionHistory.push_back(transaction);
+		}
+	}
+
+};
+Account::Account(string bankname, string accountnum, string owner, long initbalance) {
+	accountBankName = bankname;
+	accountNumber = accountnum;
+	ownerName = owner;
+	balance = initbalance;
+
+}
+class Transaction{};
 /*Card Test Cases
 void testCase1_BasicCardValidation() {
 	cout << "\n=== Test Case 1: Basic Card Validation ===\n";
