@@ -312,7 +312,28 @@ Account::Account(string bankname, string accountnum, string owner, long initbala
 	balance = initbalance;
 
 }
-class Transaction{};
+class Transaction{
+private:
+	int transactionID;
+	string cardNumber;
+	string sourceAccountNumber;
+	string receiverAccountNumber;
+	double amount;
+	string transactionType;
+	long timestamp;
+	double fee;
+public:
+	Transaction(int transaction_id, string card_num, string source_account, string receiver, double amount, string transaction_type, long timestamp, double fee_amount);
+	
+	int getTransactionID() { return transactionID; }
+	string getCardNumber() { return cardNumber; }
+	string getSourceAccountNumber() { return sourceAccountNumber; }
+	string getReceiverAccountNumber() { return receiverAccountNumber; }
+	double getAmount() { return amount; }
+	string getTransactionType() { return transactionType; }
+	long getTimestamp() { return timestamp; }
+	double getFee() { return fee; }
+};
 /*Card Test Cases
 void testCase1_BasicCardValidation() {
 	cout << "\n=== Test Case 1: Basic Card Validation ===\n";
