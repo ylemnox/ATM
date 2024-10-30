@@ -3,159 +3,7 @@
 #include <cassert>
 #include <vector>
 using namespace std;
-/*
-class ATM {
-private:
-	const int _serialNumber; //6 digit
-	bool _atmType; //True for single bank, False for multi-bank
-	bool _language; //True for English only, False for English or Korean
-	int _availableCash; //array 1000, 5000, 10000, 50000
-	Bank* primaryBank;
-	const int maxWithdrawlAmount=500000;
-	const int maxWithdrawlRepeat = 3;
-	bool _status;
-public:
-	bool validateCard() {//argument: +card
-		if (_atmType) { //single bank
-			//if card belongs to primary bank
-				//return true;
-			//else return "error message"
-		}
-		else { //multitbank
-			//return true;
-		}
-	}
-	void startSession() {//starts when card is inserted
-		if (!_language) {
-			cout << "Select Language" << endl;
-			// what should I do
-			if (validateCard()) {
-				Session* currentSession; //heap allocation required
-				int trial;
-				for (trial = 0; trial < 3; trial++) {
-					cout << "Write your PIN" << 3 - trial << "chances left\n";
-					int inPIN;
-					cin >> inPIN;
-					if (inPIN != card.PIN) { //card or account?
-						cout << "Wrong PIN" << endl;
-					}
-					else break;
-				}
-				if (trial == 3) {
-					endSession();
-				}
-				else;
-			}
-			else endSession();
-		}
-	}
 
-	void endSession() {
-		delete currentSession;
-		cout << "Transaction Summary" << endl;
-		cout << "Take your card" << endl;
-		//how should I implement card returning
-		cout << "Thanks for using our ATM" << endl;
-		//reset session-speicific counters
-	}
-
-	void handleDeposit(int desiredAmount) {
-		if (desiredAmount < maxWithdrawlAmount) {
-			cout << "Your Deposit Limit is " endl;
-			//recursion?? call this function again?
-		}
-		else {
-			//handles denomination input for cash
-			_availableCash -= desiredAmount;
-			//if deposit for non-primary banks -> 2000 additional insert
-			//else if deposit for primary banks -> 1000 add insert
-			//else if withdrawal for non-primary bank -> 2000 paid from withdrawal account
-			//else if withdrawal for primary bank -> 1000 paid from withdrawal account
-			//else if account transfer fee b/w primary banks -> 3000 paid from source account
-			//else if account transfer fee b/w prim and non-prim banks ->4000 paid from source account
-			//else if case transfer -> 1000 by inserting more cash
-			//account balance - desiredAmount
-		}
-	}
-	void handleWithdrawal();
-
-
-
-	bool correct_user("pw type", "pw type");
-	bool perform_transaction(type, double);
-	void end();
-	double getBalance();
-	void showMenu();
-	int dispense_slot();
-	int insert_slot();
-	//session management
-	// user authentication
-	// transaction handling
-	// interface operation
-	//admin mode for admin card inserted situation
-	//customer mode for common card
-};
-
-class Bank {
-private:
-	string _bankname;
-	//user: map of all registered users
-	bool _primary_bank; //true for primary bank, false for non-primary bank
-	int reserve; //total dispensable amount of money
-public:
-	//all account operations must go through Bank class
-	//internal account storage hidden from outside world
-	//add account
-	//remove account
-	//find accoount
-	//user validation
-	//account updates
-	//information retrieval
-};
-
-class Account {
-private:
-	int _number; //12 digit
-	string _bank;
-	string _user;
-	int _balance;
-	string _history;
-	int _password; //how many digits?? is abc included??
-
-public:
-	Account(int, string, string, string);
-	//deposit
-	//withdrawl
-	//balance check
-	//password validation
-	//history access
-};
-Account::Account(int number, string bankname, string username, string history) {
-}
-
-class Transaction {
-private:
-	//transaction details
-	//timing information
-	//type, amount
-	//reference detail
-public:
-	//information retrieval
-	//detail formatting
-	//transaction validation
-};
-
-class User {
-private:
-	//personal information
-	//contact details
-	//authenication data
-public:
-	//profile management
-	//information access
-	//credential validation
-};
-*/
 class Cash {
 private:
 	int denomination;
@@ -254,10 +102,7 @@ private:
 	vector <Transaction*> transactionHistory; //transaction account implemented on 10/29
 	bool primaryBank;
 
-	bool validateAccountNumber() {
-		if (atoi(accountNumber.c_str()) != 0 && accountNumber.length() == 12) return true;
-		else return false;
-	}
+	
 
 	bool deductFee(long feeAmount) {
 		if (balance >= feeAmount) {
@@ -286,7 +131,7 @@ public:
 		if (!receiverAccount) return false;
 
 		balance -= transAmount;
-		receiverAccount->deposit(transAmount, transaction);//receiver transaction으로 정해야될듯한데 어케하노
+		receiverAccount->deposit(transAmount, transaction);
 		addTransaction(transaction);
 		return true;
 	}
@@ -302,6 +147,10 @@ public:
 		if (transaction) {
 			transactionHistory.push_back(transaction);
 		}
+	}
+	bool validateAccountNumber() {
+		if (atoi(accountNumber.c_str()) != 0 && accountNumber.length() == 12) return true;
+		else return false;
 	}
 
 };
@@ -320,7 +169,7 @@ private:
 	string receiverAccountNumber;
 	double amount;
 	string transactionType;
-	long timestamp;
+	long timeStamp;
 	double fee;
 public:
 	Transaction(int transaction_id, string card_num, string source_account, string receiver, double amount, string transaction_type, long timestamp, double fee_amount);
@@ -331,9 +180,88 @@ public:
 	string getReceiverAccountNumber() { return receiverAccountNumber; }
 	double getAmount() { return amount; }
 	string getTransactionType() { return transactionType; }
-	long getTimestamp() { return timestamp; }
+	long getTimestamp() { return timeStamp; }
 	double getFee() { return fee; }
 };
+Transaction::Transaction(int transaction_id, string card_num, string source_account, string receiver, double amount_, string transaction_type, long timestamp, double fee_amount) {
+	transactionID = transaction_id;
+	cardNumber = card_num;
+	sourceAccountNumber = source_account;
+	receiverAccountNumber = receiver;
+	amount = amount_;
+	transactionType = transaction_type;
+	timeStamp = timestamp;
+	fee = fee_amount;
+}
+void testCashClass() {
+	// Test case 1: Valid cash denomination
+	Cash cash1(10000, 5);
+	assert(cash1.validate() == true);
+	assert(cash1.totalAmount() == 50000);
+
+	// Test case 2: Invalid cash denomination
+	Cash cash2(100, 10);
+	assert(cash2.validate() == false);
+
+	// Test case 3: Add and subtract cash
+	assert(cash1.add(2) == true);
+	assert(cash1.getQuantity() == 7);
+	assert(cash1.subtract(3) == true);
+	assert(cash1.getQuantity() == 4);
+	assert(cash1.subtract(5) == false);
+}
+
+// Test Case 2: Validate Card Class
+void testCardClass() {
+	// Test case 1: Validate password
+	Card card1("123456789012", "Kakao", "111222333444", "password123");
+	assert(card1.validatePassword("password123") == true);
+	assert(card1.validatePassword("wrongpassword") == false);
+	assert(card1.getFailedAttempts() == 1);
+
+	// Test case 2: Validate for ATM
+	assert(card1.isValidForATM("Kakao", false) == true);
+	assert(card1.isValidForATM("Shinhan", false) == false);
+	assert(card1.isValidForATM("Kakao", true) == true);
+
+	// Test case 3: Lock card
+	for (int i = 0; i < 2; i++) {
+		card1.validatePassword("wrongpassword");
+	}
+	assert(card1.isLocked() == false);
+	card1.validatePassword("wrongpassword");
+	assert(card1.isLocked() == true);
+	card1.resetFailedAttempts();
+	assert(card1.isLocked() == false);
+}
+
+// Test Case 3: Validate Account Class
+void testAccountClass() {
+	// Test case 1: Validate account number
+	Account account1("Kakao", "111222333444", "John Doe", 10000);
+	assert(account1.validateAccountNumber() == true);
+
+	// Test case 2: Deposit and withdraw
+	assert(account1.deposit(5000, nullptr) == true);
+	assert(account1.getBalance() == 15000);
+	assert(account1.withdraw(3000, nullptr) == true);
+	assert(account1.getBalance() == 12000);
+	assert(account1.withdraw(15000, nullptr) == false);
+
+	// Test case 3: Transfer
+	Account account2("Shinhan", "555666777888", "Jane Smith", 20000);
+	assert(account1.transfer(&account2, 5000, nullptr) == true);
+	assert(account1.getBalance() == 7000);
+	assert(account2.getBalance() == 25000);
+}
+
+int main() {
+	testCashClass();
+	testCardClass();
+	testAccountClass();
+	return 0;
+}
+
 /*Card Test Cases
 void testCase1_BasicCardValidation() {
 	cout << "\n=== Test Case 1: Basic Card Validation ===\n";
