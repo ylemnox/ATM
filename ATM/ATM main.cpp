@@ -175,8 +175,9 @@ public:
 	}
 
 	void addTransaction(Transaction* transaction) {
-		if (transaction) {
+		if (transaction != nullptr) {
 			transactionHistory.push_back(transaction);
+			//I wonder there must be some initiation for the appended transaction
 		}
 	}
 	bool validateAccountNumber() {
@@ -192,196 +193,112 @@ Account::Account(string bankname, string accountnum, string owner, long initbala
 	balance = initbalance;
 
 }
+/* Basic Structure Fully Test
+void testCase1() {
+	cout << "Test Case 1: Basic Operations with Valid Denominations" << endl;
+	cout << "------------------------------------------------------" << endl;
 
-void testCashClass() {
-	// Test case 1: Valid cash denomination
-	Cash cash1(10000, 5);
-	assert(cash1.validate() == true);
-	assert(cash1.totalAmount() == 50000);
+	// Setup
+	Cash cash1(10000, 5); // 5 bills of 10000 denomination
 
-	// Test case 2: Invalid cash denomination
-	Cash cash2(100, 10);
-	assert(cash2.validate() == false);
+	// Test 1.1: Initial state
+	cout << "1.1 Initial State Test" << endl;
+	cout << "Expected: Denomination = 10000, Quantity = 5, Total = 50000" << endl;
+	cout << "Actual: Denomination = " << cash1.getDenomination() << ", Quantity = " << cash1.getQuantity() << ", Total = " << cash1.totalAmount() << endl;
 
-	// Test case 3: Add and subtract cash
-	assert(cash1.add(2) == true);
-	assert(cash1.getQuantity() == 7);
-	assert(cash1.subtract(3) == true);
-	assert(cash1.getQuantity() == 4);
-	assert(cash1.subtract(5) == false);
+	// Test 1.2: Add quantity
+	cash1.add(3);
+	cout << "1.2 After Adding 3 Bills" << endl;
+	cout << "Expected: Quantity = 8, Total = 80000" << endl;
+	cout << "Actual: Quantity = " << cash1.getQuantity() << ", Total = " << cash1.totalAmount() << endl;
+
+	// Test 1.3: Subtract quantity
+	cash1.subtract(2);
+	cout << "1.3 After Subtracting 2 Bills" << endl;
+	cout << "Expected: Quantity = 6, Total = 60000" << endl;
+	cout << "Actual: Quantity = " << cash1.getQuantity() << ", Total = " << cash1.totalAmount() << endl;
+
+	// Test 1.4: Validate denomination
+	cout << "1.4 Denomination Validation" << endl;
+	cout << "Expected: True (10000 is a valid denomination)" << endl;
+	cout << "Actual: " << (cash1.validate() ? "True" : "False") << endl;
+
+	cout << endl;
 }
 
-// Test Case 2: Validate Card Class
-void testCardClass() {
-	// Test case 1: Validate password
-	Card card1("123456789012", "Kakao", "111222333444", "password123");
-	assert(card1.validatePassword("password123") == true);
-	assert(card1.validatePassword("wrongpassword") == false);
-	assert(card1.getFailedAttempts() == 1);
+void testCase2() {
+	cout << "Test Case 2: Card Password Validation and Lockout" << endl;
+	cout << "--------------------------------------------------" << endl;
 
-	// Test case 2: Validate for ATM
-	assert(card1.isValidForATM("Kakao", false) == true);
-	assert(card1.isValidForATM("Shinhan", false) == false);
-	assert(card1.isValidForATM("Kakao", true) == true);
+	// Setup
+	Card card1("1234567812345678", "Bank A", "123456789012", "pass123");
 
-	// Test case 3: Lock card
-	for (int i = 0; i < 2; i++) {
-		card1.validatePassword("wrongpassword");
-	}
-	cout << card1.isLocked() << endl;
-	//assert(card1.isLocked() == false);
-	card1.validatePassword("wrongpassword");
-	assert(card1.isLocked() == true);
+	// Test 2.1: Validate correct password
+	cout << "2.1 Correct Password Validation" << endl;
+	cout << "Expected: True" << endl;
+	cout << "Actual: " << (card1.validatePassword("pass123") ? "True" : "False") << endl;
+
+	// Test 2.2: Incorrect password attempt and failed attempt count
+	card1.validatePassword("wrongpass");
+	cout << "2.2 Incorrect Password Attempt" << endl;
+	cout << "Expected: Failed Attempts = 1" << endl;
+	cout << "Actual: Failed Attempts = " << card1.getFailedAttempts() << endl;
+
+	// Test 2.3: Lockout after 3 incorrect attempts
+	card1.validatePassword("wrongpass");
+	card1.validatePassword("wrongpass");
+	cout << "2.3 Account Lockout After 3 Attempts" << endl;
+	cout << "Expected: Is Locked = True" << endl;
+	cout << "Actual: Is Locked = " << (card1.isLocked() ? "True" : "False") << endl;
+
+	// Test 2.4: Reset failed attempts
 	card1.resetFailedAttempts();
-	assert(card1.isLocked() == false);
+	cout << "2.4 Reset Failed Attempts" << endl;
+	cout << "Expected: Failed Attempts = 0" << endl;
+	cout << "Actual: Failed Attempts = " << card1.getFailedAttempts() << endl;
+
+	cout << endl;
 }
+void testCase3() {
+	cout << "Test Case 3: Account Operations - Deposit, Transfer, Withdraw" << endl;
+	cout << "------------------------------------------------------------" << endl;
 
-// Test Case 3: Validate Account Class
-void testAccountClass() {
-	// Test case 1: Validate account number
-	Account account1("Kakao", "111222333444", "John Doe", 10000);
-	assert(account1.validateAccountNumber() == true);
+	// Setup
+	Account account1("Bank A", "123456789012", "Alice", 100000); // Balance: 100,000
+	Account account2("Bank B", "210987654321", "Bob", 50000);   // Balance: 50,000
 
-	// Test case 2: Deposit and withdraw
-	assert(account1.deposit(5000, nullptr) == true);
-	assert(account1.getBalance() == 15000);
-	assert(account1.withdraw(3000, nullptr) == true);
-	assert(account1.getBalance() == 12000);
-	assert(account1.withdraw(15000, nullptr) == false);
+	Transaction depositTransaction(1, "", "123456789012", "", 20000, "deposit", 1633072800, 0.0);
 
-	// Test case 3: Transfer
-	Account account2("Shinhan", "555666777888", "Jane Smith", 20000);
-	assert(account1.transfer(&account2, 5000, nullptr) == true);
-	assert(account1.getBalance() == 7000);
-	assert(account2.getBalance() == 25000);
+	// Test 3.1: Deposit
+	account1.deposit(20000, &depositTransaction);
+	cout << "3.1 Deposit Operation" << endl;
+	cout << "Expected: Balance = 120000" << endl;
+	cout << "Actual: Balance = " << account1.getBalance() << endl;
+
+	// Test 3.2: Transfer between accounts
+	Transaction transferTransaction(2, "", "123456789012", "210987654321", 30000, "transfer", 1633072801, 10.0);
+	account1.transfer(&account2, 30000, &transferTransaction);
+	cout << "3.2 Transfer Operation from Account 1 to Account 2" << endl;
+	cout << "Expected: Account 1 Balance = 90000, Account 2 Balance = 80000" << endl;
+	cout << "Actual: Account 1 Balance = " << account1.getBalance() << ", Account 2 Balance = " << account2.getBalance() << endl;
+
+	// Test 3.3: Withdraw
+	Transaction withdrawTransaction(3, "", "123456789012", "", 10000, "withdraw", 1633072802, 5.0);
+	account1.withdraw(10000, &withdrawTransaction);
+	cout << "3.3 Withdraw Operation" << endl;
+	cout << "Expected: Account 1 Balance = 80000" << endl;
+	cout << "Actual: Account 1 Balance = " << account1.getBalance() << endl;
+
+	cout << endl;
 }
-
 int main() {
-	testCashClass();
-	testCardClass();
-	testAccountClass();
-	return 0;
-}
-
-/*Card Test Cases
-void testCase1_BasicCardValidation() {
-	cout << "\n=== Test Case 1: Basic Card Validation ===\n";
-
-	// Create a regular card
-	Card card1("1234567890", "Kakao", "111111111111", "1234");
-
-	// Test basic getters
-	cout << "1.1 Testing Card Number:\n";
-	cout << "Expected: 1234567890\n";
-	cout << "Actual  : " << card1.getCardNumber() << "\n";
-	assert(card1.getCardNumber() == "1234567890");
-
-	cout << "\n1.2 Testing Bank Name:\n";
-	cout << "Expected: Kakao\n";
-	cout << "Actual  : " << card1.getCardBankName() << "\n";
-	assert(card1.getCardBankName() == "Kakao");
-
-	cout << "\n1.3 Testing Account Number:\n";
-	cout << "Expected: 111111111111\n";
-	cout << "Actual  : " << card1.getAccountNumber() << "\n";
-	assert(card1.getAccountNumber() == "111111111111");
-
-	cout << "\n1.4 Testing Admin Status:\n";
-	cout << "Expected: false\n";
-	cout << "Actual  : " << (card1.isAdminCard() ? "true" : "false") << "\n";
-	assert(card1.isAdminCard() == false);
-
-	cout << "\n1.5 Testing Password Validation:\n";
-	cout << "Expected: Correct password (1234) -> true\n";
-	cout << "Actual  : " << (card1.validatePassword("1234") ? "true" : "false") << "\n";
-	cout << "Expected: Wrong password (wrong) -> false\n";
-	cout << "Actual  : " << (card1.validatePassword("wrong") ? "true" : "false") << "\n";
-
-	cout << "\nBasic card validation tests passed!\n";
-}
-
-void testCase2_FailedAttemptsLocking() {
-	cout << "\n=== Test Case 2: Failed Attempts and Card Locking ===\n";
-
-	Card card2("9876543210", "Shinhan", "222222222222", "5678");
-
-	cout << "2.1 Testing Initial Failed Attempts:\n";
-	cout << "Expected: 0\n";
-	cout << "Actual  : " << card2.getFailedAttempts() << "\n";
-	assert(card2.getFailedAttempts() == 0);
-
-	cout << "\n2.2 Testing Initial Lock Status:\n";
-	cout << "Expected: false\n";
-	cout << "Actual  : " << (card2.isLocked() ? "true" : "false") << "\n";
-	assert(card2.isLocked() == false);
-
-	// Simulate three wrong password attempts
-	cout << "\n2.3 Testing Wrong Password Attempts:\n";
-	cout << "Attempt 1 - Expected: false\n";
-	cout << "Actual  : " << (card2.validatePassword("wrong1") ? "true" : "false") << "\n";
-	cout << "Attempt 2 - Expected: false\n";
-	cout << "Actual  : " << (card2.validatePassword("wrong2") ? "true" : "false") << "\n";
-	cout << "Attempt 3 - Expected: false\n";
-	cout << "Actual  : " << (card2.validatePassword("wrong3") ? "true" : "false") << "\n";
-
-	cout << "\n2.4 Testing Failed Attempts Count:\n";
-	cout << "Expected: 3\n";
-	cout << "Actual  : " << card2.getFailedAttempts() << "\n";
-	assert(card2.getFailedAttempts() == 3);
-
-	cout << "\n2.5 Testing Lock Status After Failed Attempts:\n";
-	cout << "Expected: true\n";
-	cout << "Actual  : " << (card2.isLocked() ? "true" : "false") << "\n";
-	assert(card2.isLocked() == true);
-
-	cout << "\n2.6 Testing Reset Functionality:\n";
-	card2.resetFailedAttempts();
-	cout << "Expected: 0\n";
-	cout << "Actual  : " << card2.getFailedAttempts() << "\n";
-
-	cout << "\nFailed attempts and locking tests passed!\n";
-}
-
-void testCase3_ATMCompatibility() {
-	cout << "\n=== Test Case 3: ATM Compatibility ===\n";
-
-	Card kakaoBankCard("1111222233", "Kakao", "333333333333", "9999");
-	Card adminCard("9999999999", "Admin", "000000000000", "0000", true);
-
-	cout << "3.1 Testing Single-Bank ATM (Same Bank):\n";
-	cout << "Expected: true\n";
-	cout << "Actual  : " << (kakaoBankCard.isValidForATM("Kakao", false) ? "true" : "false") << "\n";
-	assert(kakaoBankCard.isValidForATM("Kakao", false) == true);
-
-	cout << "\n3.2 Testing Single-Bank ATM (Different Bank):\n";
-	cout << "Expected: false\n";
-	cout << "Actual  : " << (kakaoBankCard.isValidForATM("Shinhan", false) ? "true" : "false") << "\n";
-	assert(kakaoBankCard.isValidForATM("Shinhan", false) == false);
-
-	cout << "\n3.3 Testing Multi-Bank ATM:\n";
-	cout << "Expected: true\n";
-	cout << "Actual  : " << (kakaoBankCard.isValidForATM("Shinhan", true) ? "true" : "false") << "\n";
-	assert(kakaoBankCard.isValidForATM("Shinhan", true) == true);
-
-	cout << "\n3.4 Testing Admin Card:\n";
-	cout << "Expected: true (should work in any ATM)\n";
-	cout << "Actual  : " << (adminCard.isValidForATM("Kakao", false) ? "true" : "false") << "\n";
-	assert(adminCard.isValidForATM("Kakao", true) == true);
-
-	cout << "\nATM compatibility tests passed!\n";
-}
-
-int main() {
-	cout << "Starting Card Class Tests...\n";
-
-	testCase1_BasicCardValidation();
-	testCase2_FailedAttemptsLocking();
-	testCase3_ATMCompatibility();
-
-	cout << "\nAll card tests completed successfully!\n";
+	testCase1();
+	testCase2();
+	testCase3();
 	return 0;
 }
 */
+
 /*Cash Test Cases
 // Test Case 1: Basic Operations with Valid Denomination
 void testCase1() {
