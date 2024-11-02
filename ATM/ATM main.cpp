@@ -193,6 +193,70 @@ Account::Account(string bankname, string accountnum, string owner, long initbala
 	balance = initbalance;
 
 }
+class Bank {
+private:
+	string bankName;
+	vector<Account*> accounts;        // All accounts in this bank
+	vector<Card*> issuedCards;        // All cards issued by this bank
+	vector<Transaction*> transactions; // Transaction history
+	bool primaryBank;               // If this bank is primary for an ATM
+	int lastTransactionID;
+public:
+	Bank(string bankName, bool isPrimary);
+	~Bank();
+	Account* createAccount(string ownerName, string accountNumber, long initialBalance);
+	Account * findAccount(string accountNumber);
+	vector<Account*> getAccountsByOwner(string ownerName);
+	bool validateAccountNumber(string accountNumber);
+
+	Card* issueCard(string accountNumber, string cardNumber, string password, bool isAdmin = false);
+	Card * findCard(string cardNumber);
+	bool validateCard(string cardNumber, string atmBankName, bool isMultiBankATM);
+	bool validateCardPassword(string cardNumber, string password);
+
+	Transaction * createTransaction(string cardNum, string sourceAcc, string receiverAcc,
+		double amount, string transType, double fee);
+	bool processTransaction(Transaction * transaction);
+	vector<Transaction*> getTransactionHistory(string accountNumber);
+	vector<Transaction*> getAllTransactions() const;
+
+	// Setter, Getter
+	string getBankName() const { return bankName; }
+	bool isPrimaryBank() const { return primaryBank; }
+	void setPrimaryBank(bool is_primary) {
+		primaryBank = is_primary;
+	}
+
+	// Balance Operations
+	bool updateBalance(string accountNumber, long amount);
+	long getBalance(string accountNumber);
+};
+
+Bank::Bank(string bank_name, bool isPrimary) {
+	bankName = bank_name;
+	primaryBank = isPrimary;
+}
+Bank::~Bank() {
+}
+
+Account* Bank::createAccount(string ownername, string accountnumber, long initialbalance) {
+	if (atoi(accountnumber.c_str()) == 0 || accountnumber.length() != 12) { return nullptr; }
+
+	for (Account* acc : accounts) {
+		if (acc->getAccountNumber() == accountnumber) { return nullptr; }
+	}
+
+	Account* newAccount=new Account(getBankName(), accountnumber, ownername, initialbalance);
+
+	if (!newAccount->validateAccountNumber()) {
+		delete newAccount;
+		return nullptr;
+	}
+
+
+}
+
+
 /* Basic Structure Fully Test
 void testCase1() {
 	cout << "Test Case 1: Basic Operations with Valid Denominations" << endl;
