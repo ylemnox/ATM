@@ -203,19 +203,18 @@ private:
 	int lastTransactionID;
 public:
 	Bank(string bankName, bool isPrimary);
-	~Bank();
-	Account* createAccount(string ownerName, string accountNumber, long initialBalance);
-	Account * findAccount(string accountNumber);
-	vector<Account*> getAccountsByOwner(string ownerName);
-	bool validateAccountNumber(string accountNumber);
-
-	Card* issueCard(string accountNumber, string cardNumber, string password, bool isAdmin = false);
-	Card * findCard(string cardNumber);
-	bool validateCard(string cardNumber, string atmBankName, bool isMultiBankATM);
+	~Bank(); // Is it necessary?
+	Account* createAccount(string owner, string accountnum, long initialbalance);
+	Account * findAccount(string account_number);
+	vector<Account*> getAccountsByOwner(string owner);
+	bool validateAccountNumber(string accountnum); //must be called before constructor called
+	//for 241104
+	Card* issueCard(string accountnum, string cardnum, string pw, bool isAdmin = false);
+	Card * findCard(string cardnum);
+	bool validateCard(string cardnum, string atmBankName, bool isMultiBankATM);
 	bool validateCardPassword(string cardNumber, string password);
 
-	Transaction * createTransaction(string cardNum, string sourceAcc, string receiverAcc,
-		double amount, string transType, double fee);
+	Transaction * createTransaction(string cardNum, string sourceAcc, string receiverAcc,double amount, string transType, double fee);
 	bool processTransaction(Transaction * transaction);
 	vector<Transaction*> getTransactionHistory(string accountNumber);
 	vector<Transaction*> getAllTransactions() const;
@@ -236,26 +235,47 @@ Bank::Bank(string bank_name, bool isPrimary) {
 	bankName = bank_name;
 	primaryBank = isPrimary;
 }
-Bank::~Bank() {
-}
 
-Account* Bank::createAccount(string ownername, string accountnumber, long initialbalance) {
-	if (atoi(accountnumber.c_str()) == 0 || accountnumber.length() != 12) { return nullptr; }
-
+Account* Bank::createAccount(string owner, string accountnum, long initialbalance) {
 	for (Account* acc : accounts) {
-		if (acc->getAccountNumber() == accountnumber) { return nullptr; }
+		if (acc->getAccountNumber() == accountnum) { return nullptr; }
 	}
 
-	Account* newAccount=new Account(getBankName(), accountnumber, ownername, initialbalance);
+	Account* newAccount=new Account(getBankName(), accountnum, owner, initialbalance);
 
 	if (!newAccount->validateAccountNumber()) {
 		delete newAccount;
 		return nullptr;
 	}
+	accounts.push_back(newAccount);
 
-
+	return newAccount;
 }
 
+Account* Bank::findAccount(string accountnum) {
+	for (Account* acc : accounts) {
+		if (acc->getAccountNumber() == accountnum) return acc;
+	}
+	cout << accountnum << "account is not found" << endl;
+	return nullptr;
+}
+
+vector<Account*> Bank::getAccountsByOwner(string owner) {
+	vector<Account*> temp;
+	for (Account* acc : accounts) {
+		if (acc->getOwnerName() == owner) temp.push_back(acc);
+	}
+
+	if (!temp.empty()) return temp;
+	else {
+		cout << owner << "'s account is not found" << endl;
+		return temp;
+	}
+}
+bool Bank::validateAccountNumber(string accountnum){
+	if (atoi(accountnum.c_str()) != 0 && accountnum.length() == 12) return true;
+	else false;
+}
 
 /* Basic Structure Fully Test
 void testCase1() {
