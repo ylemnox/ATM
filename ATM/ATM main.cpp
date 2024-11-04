@@ -209,7 +209,7 @@ public:
 	vector<Account*> getAccountsByOwner(string owner);
 	bool validateAccountNumber(string accountnum); //must be called before constructor called
 	//for 241104
-	Card* issueCard(string accountnum, string cardnum, string pw, bool isAdmin = false);
+	Card* createCard(string accountnum, string cardnum, string pw, bool isAdmin = false);
 	Card * findCard(string cardnum);
 	bool validateCard(string cardnum, string atmBankName, bool isMultiBankATM);
 	bool validateCardPassword(string cardNumber, string password);
@@ -276,7 +276,24 @@ bool Bank::validateAccountNumber(string accountnum){
 	if (atoi(accountnum.c_str()) != 0 && accountnum.length() == 12) return true;
 	else false;
 }
+Card* Bank::createCard(string accountnum, string cardnum, string pw, bool isAdmin = false) {
+	if (validateAccountNumber) {
+		cout << "Wrong Account Number Format" << endl;
+		return nullptr;
+	}
+	if (!findAccount(accountnum)) {
+		cout << "Existing Account" << endl;
+		return nullptr;
+	}
+	if (!findCard(cardnum)) {
+		cout << "Existing Card" << endl;
+		return nullptr;
+	}
+	Card* createdCard = new Card(cardnum, getBankName(), accountnum, pw, isAdmin = false);
 
+	issuedCards.push_back(createdCard);
+	return createdCard;
+}
 /* Basic Structure Fully Test
 void testCase1() {
 	cout << "Test Case 1: Basic Operations with Valid Denominations" << endl;
