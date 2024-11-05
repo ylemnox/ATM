@@ -3,8 +3,10 @@
 #include <cassert>
 #include <vector>
 using namespace std;
+static int idMaker = 0;
 class Transaction {
 private:
+	
 	int transactionID;
 	string cardNumber;
 	string sourceAccountNumber;
@@ -25,8 +27,10 @@ public:
 	long getTimestamp() { return timeStamp; }
 	double getFee() { return fee; }
 };
-Transaction::Transaction(int transaction_id, string card_num, string source_account, string receiver, double amount_, string transaction_type, long timestamp, double fee_amount) {
-	transactionID = transaction_id;
+
+
+Transaction::Transaction(int idMaker, string card_num, string source_account, string receiver, double amount_, string transaction_type, long timestamp, double fee_amount) {
+	transactionID = idMaker;
 	cardNumber = card_num;
 	sourceAccountNumber = source_account;
 	receiverAccountNumber = receiver;
@@ -34,6 +38,7 @@ Transaction::Transaction(int transaction_id, string card_num, string source_acco
 	transactionType = transaction_type;
 	timeStamp = timestamp;
 	fee = fee_amount;
+	idMaker++;
 }
 class Cash {
 private:
@@ -132,9 +137,6 @@ private:
 	long balance;
 	vector <Transaction*> transactionHistory; //transaction account implemented on 10/29
 	bool primaryBank;
-
-	
-
 	bool deductFee(long feeAmount) {
 		if (balance >= feeAmount) {
 			balance -= feeAmount;
@@ -208,13 +210,14 @@ public:
 	Account * findAccount(string account_number);
 	vector<Account*> getAccountsByOwner(string owner);
 	bool validateAccountNumber(string accountnum); //must be called before constructor called
-	//for 241104
+
 	Card* createCard(string accountnum, string cardnum, string pw, bool isAdmin = false);
 	Card * findCard(string cardnum);
 	bool validateCard(string cardnum, string atmBankName, bool isMultiBankATM);
-	bool validateCardPassword(string cardNumber, string password);
+	bool validateCardPassword(string cardnum, string pw);
 
-	Transaction * createTransaction(string cardNum, string sourceAcc, string receiverAcc,double amount, string transType, double fee);
+	Transaction * createTransaction(string cardNum, string sourceAcc, string receiverAcc,double amount, string transType, long timestamp, double fee);
+	//2024.11.05 
 	bool processTransaction(Transaction * transaction);
 	vector<Transaction*> getTransactionHistory(string accountNumber);
 	vector<Transaction*> getAllTransactions() const;
@@ -293,6 +296,39 @@ Card* Bank::createCard(string accountnum, string cardnum, string pw, bool isAdmi
 
 	issuedCards.push_back(createdCard);
 	return createdCard;
+}
+Card* Bank::findCard(string cardnum) {
+	for (Card* card : issuedCards) {
+		if (card->getCardNumber() == cardnum) {
+			return card;
+		}
+	}
+	cout << "Card Number: " << cardnum << "is not found" << endl;
+	return nullptr;
+}
+bool Bank::validateCard(string cardnum, string atmBankName, bool isMultiBankATM) {
+	Card* card = findCard(cardnum);
+	if (!card) return false;
+
+	if (isMultiBankATM) return true;
+
+	else {
+		if (card->getCardBankName() == atmBankName) return true;
+		else return false;
+	}
+}
+bool Bank::validateCardPassword(string cardnum, string pw) {
+	return findCard(cardnum)->validatePassword(pw);
+}
+
+Transaction* Bank::createTransaction(string cardNum, string sourceAcc, string receiverAcc, double amount, string transType, long timestamp, double fee) {
+	
+	Transaction* newTransaction=new Transaction(idMaker, cardNum, sourceAcc, receiverAcc, amount, transType, timestamp, fee);
+
+	if (!newTransaction) {
+		transactions.push_back(newTransaction);
+		return newTransaction;
+	}
 }
 /* Basic Structure Fully Test
 void testCase1() {
