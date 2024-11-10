@@ -330,6 +330,11 @@ Transaction* Bank::createTransaction(string cardNum, string sourceAcc, string re
 		return newTransaction;
 	}
 }
+bool processTransaction(Transaction* transaction) {
+	if (transaction == nullptr) return false;
+	//implement from here
+
+}
 /* Basic Structure Fully Test
 void testCase1() {
 	cout << "Test Case 1: Basic Operations with Valid Denominations" << endl;
