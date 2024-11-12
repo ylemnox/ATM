@@ -230,7 +230,7 @@ public:
 	}
 
 	// Balance Operations
-	bool updateBalance(string accountNumber, long amount);
+	//bool updateBalance(string accountNumber, long amount, string transactiontype);
 	long getBalance(string accountNumber);
 };
 
@@ -330,11 +330,146 @@ Transaction* Bank::createTransaction(string cardNum, string sourceAcc, string re
 		return newTransaction;
 	}
 }
-bool processTransaction(Transaction* transaction) {
+bool Bank::processTransaction(Transaction* transaction) {
 	if (transaction == nullptr) return false;
-	//implement from here
 
+	Account* sourceAccount = findAccount(transaction->getSourceAccountNumber());
+	Account* receiverAccount = nullptr;
+
+	if (!transaction->getReceiverAccountNumber().empty()) {
+		receiverAccount = findAccount(transaction->getReceiverAccountNumber());
+	}
+
+	// 2. Validate source account exists (except for cash deposit)
+	string transType = transaction->getTransactionType();
+	if (transType != "DEPOSIT" && sourceAccount == nullptr) {
+		return false;
+	}
+
+	// 3. Process based on transaction type
+	bool success = false;
+
+	if (transType == "DEPOSIT") {
+		// Handle deposit (REQ4.3)
+		if (receiverAccount == nullptr) return false;
+		success = receiverAccount->deposit(transaction->getAmount(), transaction);
+
+	}
+	else if (transType == "WITHDRAWAL") {
+		// Handle withdrawal (REQ5.3)
+		// First deduct fee
+		if (!sourceAccount->withdraw(transaction->getFee(), transaction)) {
+			return false;
+		}
+		// Then process withdrawal
+		success = sourceAccount->withdraw(transaction->getAmount(), transaction);
+
+	}
+	else if (transType == "TRANSFER") {
+		// Handle transfer (REQ6.7)
+		if (receiverAccount == nullptr) return false;
+
+		// First deduct fee
+		if (!sourceAccount->withdraw(transaction->getFee(), transaction)) {
+			return false;
+		}
+		// Then process transfer
+		success = sourceAccount->transfer(receiverAccount, transaction->getAmount(), transaction);
+	}
+
+	// 4. If transaction successful, add to bank's transaction history
+	if (success) {
+		transactions.push_back(transaction);
+	}
+
+	return success;
 }
+vector<Transaction*> Bank::getTransactionHistory(string accountNumber) {
+	vector<Transaction*> temp;
+	for (Transaction* trans : transactions) {
+		if (trans->getSourceAccountNumber() == accountNumber) temp.push_back(trans);
+	}
+	return temp;
+}
+vector<Transaction*> Bank::getAllTransactions() const { return transactions; }
+
+long Bank::getBalance(string accountNumber) {
+	return findAccount(accountNumber)->getBalance();
+}
+
+class Session {
+private:
+	string sessionID;
+	Card* currentCard;         // Current card being used in session
+	Account* currentAccount;   // Current account being accessed
+	vector<Transaction*> sessionTransactions;  // Transactions made in this session
+	int withdrawalCount;       // Track number of withdrawals (max 3)
+	bool isActive;            // Session state
+	string selectedLanguage;  // "EN" or "KR" for language setting
+	long sessionStartTime;
+
+	string generateSessionId();
+		// Generates unique session identifier
+		// Returns: generated ID string
+
+	void validateSessionState();
+		// Checks if session should remain active
+		// Returns: void
+public:
+	Session(Card* card, Account* account, string language);
+		// Constructor: Initialize session with card and account
+		// Returns: Session object
+
+	bool startSession();
+		// Validates card and initializes session
+		// Returns: true if session started successfully
+
+	void endSession();
+		// Ends session and displays transaction summary
+		// Returns: void
+
+	bool isSessionActive();
+		// Checks if session is still active
+		// Returns: true if session is active
+
+	bool canWithdraw();
+		// Checks if withdrawal limit reached
+		// Returns: true if more withdrawals allowed
+
+	void incrementWithdrawalCount();
+		// Increases withdrawal counter
+		// Returns: void
+
+	void addTransaction(Transaction* transaction);
+		// Adds new transaction to session history
+		// Returns: void
+
+	vector<Transaction*> getSessionTransactions();
+		// Gets all transactions in current session
+		// Returns: vector of transactions
+
+	string getSessionId();
+		// Gets session identifier
+		// Returns: session ID string
+
+	Card* getCurrentCard();
+		// Gets current card in use
+		// Returns: pointer to current card
+
+	Account* getCurrentAccount();
+		// Gets current account in use
+		// Returns: pointer to current account
+
+	string getSelectedLanguage();
+		// Gets current language setting
+		// Returns: language code string
+
+	generateSummary();
+		// Creates end-of-session summary
+		// Returns: string containing session summary
+
+		
+};
 /* Basic Structure Fully Test
 void testCase1() {
 	cout << "Test Case 1: Basic Operations with Valid Denominations" << endl;
