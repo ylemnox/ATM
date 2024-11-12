@@ -5,41 +5,36 @@
 using namespace std;
 static int idMaker = 0;
 class Transaction {
-private:
-	
-	int transactionID;
-	string cardNumber;
-	string sourceAccountNumber;
-	string receiverAccountNumber;
-	double amount;
-	string transactionType;
-	long timeStamp;
-	double fee;
+protected:
+	static int _nextID;
+	int _transactionID;
+	string _cardNumber;
+	string _sourceAccountNumber;
+	//string receiverAccountNumber;
+	double _amount;
+	long _timeStamp;
+	//double fee;
 public:
-	Transaction(int transaction_id, string card_num, string source_account, string receiver, double amount, string transaction_type, long timestamp, double fee_amount);
+	Transaction(string cardNum, string sourceAcc, double amount, long timestamp);
 
-	int getTransactionID() { return transactionID; }
-	string getCardNumber() { return cardNumber; }
-	string getSourceAccountNumber() { return sourceAccountNumber; }
-	string getReceiverAccountNumber() { return receiverAccountNumber; }
-	double getAmount() { return amount; }
-	string getTransactionType() { return transactionType; }
-	long getTimestamp() { return timeStamp; }
-	double getFee() { return fee; }
+	int getTransactionID() { return _transactionID; }
+	string getCardNumber() { return _cardNumber; }
+	string getSourceAccountNumber() { return _sourceAccountNumber; }
+	double getAmount() { return _amount; }
+	long getTimestamp() { return _timeStamp; }
 };
 
-
-Transaction::Transaction(int idMaker, string card_num, string source_account, string receiver, double amount_, string transaction_type, long timestamp, double fee_amount) {
-	transactionID = idMaker;
-	cardNumber = card_num;
-	sourceAccountNumber = source_account;
-	receiverAccountNumber = receiver;
-	amount = amount_;
-	transactionType = transaction_type;
-	timeStamp = timestamp;
-	fee = fee_amount;
-	idMaker++;
+int Transaction::_nextID = 0;
+Transaction::Transaction(string cardNum, string sourceAcc, double amount, long timestamp){
+	_transactionID = _nextID++;
+	_cardNumber = cardNum;
+	_sourceAccountNumber = sourceAcc;
+	_amount = amount;
+	_timeStamp = timestamp;
 }
+class withdrawl : public Transaction{};
+class deposit : public Transaction {};
+class transfer : public Transaction {};
 class Cash {
 private:
 	int denomination;
