@@ -2,12 +2,14 @@
 #include <string>
 #include <cassert>
 #include <vector>
+#include <map>
 using namespace std;
 static int idMaker = 0;
 class Transaction {
 protected:
 	static int _nextID;
 	int _transactionID;
+	string _t_name;
 	string _cardNumber;
 	string _sourceAccountNumber;
 	//string receiverAccountNumber;
@@ -22,6 +24,9 @@ public:
 	string getSourceAccountNumber() { return _sourceAccountNumber; }
 	double getAmount() { return _amount; }
 	long getTimestamp() { return _timeStamp; }
+
+	virtual bool updateAccountBalance();
+	virtual bool updateATMAvailaaleCash();
 };
 
 int Transaction::_nextID = 0;
@@ -32,7 +37,52 @@ Transaction::Transaction(string cardNum, string sourceAcc, double amount, long t
 	_amount = amount;
 	_timeStamp = timestamp;
 }
-class withdrawl : public Transaction{};
+class withdrawl : public Transaction{
+public:
+	withdrawl(string cardNum, string sourceAcc, double amount, long timestamp);
+	int decideDenom(double _amount);
+	bool updateAccountBalance() override;
+	bool updateATMAvailaaleCash() override;
+};
+//withdrawl functions definition
+withdrawl::withdrawl(string cardNum, string sourceAcc, double amount, long timestamp) :Transaction(cardNum, sourceAcc, amount, timestamp) {
+	_t_name = "Withdrawl";
+	//cout << "Withdrawl Constructor" << endl;
+}
+int withdrawl::decideDenom(double _amount) {
+	if (_amount < 1000) {
+		cout << "The amount must be bigger than 1000" << endl;
+		return 0;
+	}
+	int arr[4];
+	int temp = _amount;
+	if (temp > 50000) {
+		arr[0] = temp / 50000;
+		temp -= arr[0] * 50000;
+	}
+	if (temp > 10000) {
+		arr[1] = temp / 10000;
+		temp -= arr[1] * 10000;
+	}
+	if (temp > 5000){
+		arr[2] = temp / 5000;
+		temp -= arr[3] * 5000;
+	}
+	if (temp > 1000) {
+		arr[3] = temp / 1000;
+		if (temp % 1000 > 0) cout << "jandon eun an dwae";
+	}
+
+	return arr[4];
+}
+bool withdrawl::updateAccountBalance() {
+	//Bank에 연락해서 account balance - amount
+}
+bool withdrawl::updateATMAvailaaleCash() {
+	//ATM availablecash - amount
+}
+
+
 class deposit : public Transaction {};
 class transfer : public Transaction {};
 class Cash {
@@ -190,14 +240,16 @@ Account::Account(string bankname, string accountnum, string owner, long initbala
 	balance = initbalance;
 
 }
+
+
 class Bank {
 private:
-	string bankName;
-	vector<Account*> accounts;        // All accounts in this bank
-	vector<Card*> issuedCards;        // All cards issued by this bank
-	vector<Transaction*> transactions; // Transaction history
-	bool primaryBank;               // If this bank is primary for an ATM
-	int lastTransactionID;
+	string _bankName;
+	vector<Account*> _accounts;        
+	vector<Card*> _issuedCards;      
+	vector<Transaction*> _transactions; 
+	bool _primaryBank;              
+	int _lastTransactionID;
 public:
 	Bank(string bankName, bool isPrimary);
 	~Bank(); // Is it necessary?
@@ -220,9 +272,6 @@ public:
 	// Setter, Getter
 	string getBankName() const { return bankName; }
 	bool isPrimaryBank() const { return primaryBank; }
-	void setPrimaryBank(bool is_primary) {
-		primaryBank = is_primary;
-	}
 
 	// Balance Operations
 	//bool updateBalance(string accountNumber, long amount, string transactiontype);
