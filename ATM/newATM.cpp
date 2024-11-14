@@ -79,13 +79,50 @@ private:
 	int denom[4];
 public:
 	ATM(int atmID, bool singleBank, bool unilingual, int fiftyK, int tenK, int fiveK, int oneK);
-
+	
+	//getter, setter
+	long getAvailableCash();
 };
 
-class Transaction {};
-class Withdrawl {};
-class Deposit {};
-class Transfer {};
+class Transaction {
+protected:
+	int transID;
+	string transactionType;
+	ATM* atm;
+	//DateTime timestamp;
+	double fee;
+
+public:
+	static int nextID_;
+	Transaction(ATM* t_atm);
+	virtual void execute();
+	virtual void validate();
+	virtual void calculateFee();
+	void describe();
+
+};
+class Withdrawl :public Transaction {
+public:
+	Withdrawl(ATM* t_atm);
+	int* distributeDenom(long amount);
+	void execute() override;
+};
+class Deposit :public Transaction{
+public:
+	Deposit(ATM* t_atm);
+	void validate();
+	void execute() override;
+
+};
+class Transfer :public Transaction {
+private:
+	string sourceAccount_;
+	string receiveAccount_;
+public:
+	Transfer(ATM* t_atm, string sourceAccount, string receiveAccount);
+	void validateAccounts();
+	void execute() override;
+};
 
 void createATM();
 void createBank();
@@ -177,3 +214,59 @@ ATM::ATM(int atmID, bool singleBank, bool unilingual, int fiftyK, int tenK, int 
 	cout << "[5000] : " << denom[2] << endl;
 	cout << "[1000] : " << denom[3] << endl;
 }
+long ATM::getAvailableCash() {
+	return denom[0] * 50000 + denom[1] * 10000 + denom[2] * 5000 + denom[3] * 1000;
+}
+//---------------------------------------------------------------------------
+
+//Transaction Member Function Defined
+int Transaction::nextID_ = 0;
+Transaction::Transaction(ATM* t_atm) {
+	transID = nextID_++;
+	atm = t_atm;
+}
+//---------------------------------------------------------------------------
+
+//Withdrawl Member Function Defined
+Withdrawl::Withdrawl(ATM* t_atm) :Transaction(t_atm) {
+	transactionType = "Withdrawl";
+}
+int* Withdrawl::distributeDenom(long amount) {
+	if (amount < 1000) {
+		cout << "The amount must be bigger than 1000" << endl;
+		return 0;
+	}
+	int arr[4];
+	int temp = amount;
+	if (temp > 50000) {
+		arr[0] = temp / 50000;
+		temp -= arr[0] * 50000;
+	}
+	if (temp > 10000) {
+		arr[1] = temp / 10000;
+		temp -= arr[1] * 10000;
+	}
+	if (temp > 5000) {
+		arr[2] = temp / 5000;
+		temp -= arr[3] * 5000;
+	}
+	if (temp > 1000) {
+		arr[3] = temp / 1000;
+		if (temp % 1000 > 0) cout << "jandon eun an dwae";
+	}
+
+	return arr;
+}
+//---------------------------------------------------------------------------
+
+//Deposit Member Function Defined
+Deposit::Deposit(ATM* t_atm) :Transaction(t_atm) {
+	transactionType = "Deposit";
+}
+//---------------------------------------------------------------------------
+
+//Transfer Member Function Defined
+Transfer::Transfer(ATM* t_atm, string sourceAccount, string receiveAccount) :Transaction(t_atm) {
+	transactionType = "Transfer";
+}
+//---------------------------------------------------------------------------
