@@ -86,33 +86,34 @@ public:
 
 class Transaction {
 protected:
-	int transID;
-	string transactionType;
-	ATM* atm;
+	int transID_;
+	string transactionType_;
+	ATM* atm_;
 	//DateTime timestamp;
-	double fee;
+	double amount_;
+	double fee_;
 
 public:
 	static int nextID_;
-	Transaction(ATM* t_atm);
+	Transaction(double amount, double fee);
 	virtual void execute();
 	virtual void validate();
 	virtual void calculateFee();
 	void describe();
-
 };
 class Withdrawl :public Transaction {
 public:
-	Withdrawl(ATM* t_atm);
+	Withdrawl(double amount, double fee);
 	int* distributeDenom(long amount);
 	void execute() override;
+	void calculateFee() override;
 };
 class Deposit :public Transaction{
 public:
 	Deposit(ATM* t_atm);
 	void validate();
 	void execute() override;
-
+	void calculateFee() override;
 };
 class Transfer :public Transaction {
 private:
@@ -122,6 +123,7 @@ public:
 	Transfer(ATM* t_atm, string sourceAccount, string receiveAccount);
 	void validateAccounts();
 	void execute() override;
+	void calculateFee() override;
 };
 
 void createATM();
@@ -221,14 +223,14 @@ long ATM::getAvailableCash() {
 
 //Transaction Member Function Defined
 int Transaction::nextID_ = 0;
-Transaction::Transaction(ATM* t_atm) {
-	transID = nextID_++;
-	atm = t_atm;
-}
+Transaction::Transaction(double amount, double fee) {
+	transID_ = nextID_++;
+	amount_ = amount;
+	fee_ = fee;
 //---------------------------------------------------------------------------
 
 //Withdrawl Member Function Defined
-Withdrawl::Withdrawl(ATM* t_atm) :Transaction(t_atm) {
+Withdrawl::Withdrawl(double amount, double fee) :Transaction(amount, fee) {
 	transactionType = "Withdrawl";
 }
 int* Withdrawl::distributeDenom(long amount) {
@@ -257,6 +259,9 @@ int* Withdrawl::distributeDenom(long amount) {
 
 	return arr;
 }
+void Withdrawl::execute() {
+
+}
 //---------------------------------------------------------------------------
 
 //Deposit Member Function Defined
@@ -267,6 +272,6 @@ Deposit::Deposit(ATM* t_atm) :Transaction(t_atm) {
 
 //Transfer Member Function Defined
 Transfer::Transfer(ATM* t_atm, string sourceAccount, string receiveAccount) :Transaction(t_atm) {
-	transactionType = "Transfer";
+	transactionType_ = "Transfer";
 }
 //---------------------------------------------------------------------------
