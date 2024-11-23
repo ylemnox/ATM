@@ -2,6 +2,7 @@
 #include <string> 
 #include <cassert>
 #include <vector>
+#include <map>
 using namespace std;
 
 class Bank {
@@ -74,14 +75,17 @@ public:
 class ATM {
 private:
 	int atmID_; //6-digit
-	bool singleBank_;
+	bool singleBank_; //ATM type
 	bool unilingual_;
-	int denom[4];
+	map<string,int> availableCash_;
+
 public:
 	ATM(int atmID, bool singleBank, bool unilingual, int fiftyK, int tenK, int fiveK, int oneK);
 	
 	//getter, setter
 	long getAvailableCash();
+	//update availableCash when deposit, withdrawl
+	void updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK);
 };
 
 class Transaction {
@@ -90,35 +94,43 @@ protected:
 	string transactionType_;
 	ATM* atm_;
 	//DateTime timestamp;
+	//TransactionStatus status
 	double amount_;
 	double fee_;
 
 public:
 	static int nextID_;
 	Transaction(double amount, double fee);
-	virtual void execute();
-	virtual void validate();
-	virtual void calculateFee();
+	virtual void execute() = 0;
+	virtual void validate() = 0;
+	virtual void calculateFee() = 0;
 	void describe();
 };
 class Withdrawl :public Transaction {
+private:
+	map<string, int> withdrawlDenominations;
 public:
 	Withdrawl(double amount, double fee);
-	int* distributeDenom(long amount);
+	map<string, int> distributeDenom(long amount);
 	void execute() override;
 	void calculateFee() override;
 };
 class Deposit :public Transaction{
+private:
+	bool isCash_; //True for cash, False for checks
+	map<string, int> depositedCash;
+	vector<double> depositedChecks;
 public:
-	Deposit(ATM* t_atm);
-	void validate();
-	void execute() override;
-	void calculateFee() override;
+	Deposit(bool isCash, double amount, int fiftyK, int tenK, int fiveK, int oneK, double fee);
+	bool validateDeposit();
+	void execute() override=0;
+	void calculateFee() override=0;
 };
 class Transfer :public Transaction {
 private:
 	string sourceAccount_;
 	string receiveAccount_;
+	//transferType type;
 public:
 	Transfer(ATM* t_atm, string sourceAccount, string receiveAccount);
 	void validateAccounts();
@@ -205,19 +217,25 @@ ATM::ATM(int atmID, bool singleBank, bool unilingual, int fiftyK, int tenK, int 
 	atmID_ = atmID;
 	singleBank_ = singleBank;
 	unilingual_ = unilingual;
-	denom[0] = fiftyK;
-	denom[1] = tenK;
-	denom[2] = fiveK;
-	denom[3] = oneK;
+	availableCash_["50000won"] = fiftyK;
+	availableCash_["10000won"] = tenK;
+	availableCash_["5000won"] = fiveK;
+	availableCash_["1000won"] = oneK;
 	cout << "ATM Constructed (ATM ID: " << atmID_ << ", Unilingual: " << unilingual_ << ")\n";
 	cout << "Initial amount of Denomination\n";
-	cout << "[50000]: " << denom[0] << endl;
-	cout << "[10000]: " << denom[1] << endl;
-	cout << "[5000] : " << denom[2] << endl;
-	cout << "[1000] : " << denom[3] << endl;
+	cout << "[50000won]: " << availableCash_["50000won"] << endl;
+	cout << "[10000won]: " << availableCash_["10000won"] << endl;
+	cout << "[5000won] : " << availableCash_["5000won"] << endl;
+	cout << "[1000won] : " << availableCash_["1000won"] << endl;
 }
 long ATM::getAvailableCash() {
-	return denom[0] * 50000 + denom[1] * 10000 + denom[2] * 5000 + denom[3] * 1000;
+	return availableCash_["50000won"], availableCash_["10000won"], availableCash_["5000won"], availableCash_["1000won"];
+}
+void ATM::updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK) { //input must include +,-
+	availableCash_["50000won"] += fiftyK;
+	availableCash_["10000won"] += tenK;
+	availableCash_["5000won"] += fiveK;
+	availableCash_["1000won"] += oneK;
 }
 //---------------------------------------------------------------------------
 
@@ -227,47 +245,87 @@ Transaction::Transaction(double amount, double fee) {
 	transID_ = nextID_++;
 	amount_ = amount;
 	fee_ = fee;
+}
+void Transaction::describe() {
+	cout << "Transaction ID: " << transID_ << " " << transactionType_ << "Amount: " << amount_ << endl;
+	cout << "Fee: " << fee_ << endl;
+}
 //---------------------------------------------------------------------------
 
 //Withdrawl Member Function Defined
 Withdrawl::Withdrawl(double amount, double fee) :Transaction(amount, fee) {
-	transactionType = "Withdrawl";
+	transactionType_ = "Withdrawl";
+	amount_ = amount;
+	fee_ = fee;
 }
-int* Withdrawl::distributeDenom(long amount) {
+map<string,int> Withdrawl::distributeDenom(long amount) {
 	if (amount < 1000) {
 		cout << "The amount must be bigger than 1000" << endl;
-		return 0;
-	}
-	int arr[4];
-	int temp = amount;
-	if (temp > 50000) {
-		arr[0] = temp / 50000;
-		temp -= arr[0] * 50000;
-	}
-	if (temp > 10000) {
-		arr[1] = temp / 10000;
-		temp -= arr[1] * 10000;
-	}
-	if (temp > 5000) {
-		arr[2] = temp / 5000;
-		temp -= arr[3] * 5000;
-	}
-	if (temp > 1000) {
-		arr[3] = temp / 1000;
-		if (temp % 1000 > 0) cout << "jandon eun an dwae";
+		return withdrawlDenominations;
 	}
 
-	return arr;
+	long temp = amount;
+	if (temp > 50000) {
+		withdrawlDenominations["50000 won"] = temp / 50000;
+		temp -= withdrawlDenominations["50000 won"] * 50000;
+	}
+	if (temp > 10000) {
+		withdrawlDenominations["10000 won"] = temp / 10000;
+		temp -= withdrawlDenominations["10000 won"] * 10000;
+	}
+	if (temp > 5000) {
+		withdrawlDenominations["5000 won"] = temp / 5000;
+		temp -= withdrawlDenominations["5000 won"] * 5000;
+	}
+	if (temp > 1000) {
+		withdrawlDenominations["1000 won"] = temp / 1000;
+		if (temp % 1000 > 0) cout << "No coins serving";
+	}
+
+	return withdrawlDenominations;
 }
 void Withdrawl::execute() {
+	//dispense to user
+	for (std::map<std::string, int>::iterator it = withdrawlDenominations.begin(); it != withdrawlDenominations.end(); ++it) {
+		std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
+	}
+	// decrease ATM cash
+	atm_->updateAvailableCash(-withdrawlDenominations["50000won"], -withdrawlDenominations["10000won"], -withdrawlDenominations["5000won"], -withdrawlDenominations["1000won"]);
+	// decrease account balance
 
 }
 //---------------------------------------------------------------------------
 
-//Deposit Member Function Defined
-Deposit::Deposit(ATM* t_atm) :Transaction(t_atm) {
-	transactionType = "Deposit";
+//Deposit Member Function Defined                                                                                             //how can I handle checks deposit???
+Deposit::Deposit(bool isCash, double amount, int fiftyK, int tenK, int fiveK, int oneK, double fee):Transaction(amount, fee){
+	transactionType_ = "Deposit";
+	amount_ = amount;
+	fee_ = fee;
+	isCash_ = isCash; //True for cash, False for checks
+	depositedCash["50000won"] = 0;
+	depositedCash["10000won"] = 0;
+	depositedCash["5000won"] = 0;
+	depositedCash["1000won"] = 0;
+	vector<double> depositedChecks;
 }
+bool Deposit::validateDeposit() {
+	if (isCash_) { //cash
+		int total_num_of_cash = depositedCash["50000won"] + depositedCash["10000won"] + depositedCash["5000won"] + depositedCash["1000won"];
+		if (total_num_of_cash > 50) {
+			cout << "Total amount of cash should be under 50" << endl;
+			return false;
+		}
+		else return true;
+	}
+	else { //checks
+		
+	}	
+}
+void Deposit::execute() {
+	depositedCash["50000 won"]
+}
+
+void calculateFee();
 //---------------------------------------------------------------------------
 
 //Transfer Member Function Defined
