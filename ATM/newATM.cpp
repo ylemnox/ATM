@@ -79,13 +79,15 @@ private:
 	bool unilingual_;
 	map<string,int> availableCash_;
 
+
 public:
 	ATM(int atmID, bool singleBank, bool unilingual, int fiftyK, int tenK, int fiveK, int oneK);
 	
 	//getter, setter
 	long getAvailableCash();
+	bool isSingleBank() { return singleBank_; } // return true if singlebank(only primary bank card), false if multibank(every bank card)
 	//update availableCash when deposit, withdrawl
-	void updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK);
+	bool updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK); //return update o,x
 };
 
 class Transaction {
@@ -109,6 +111,7 @@ public:
 class Withdrawl :public Transaction {
 private:
 	map<string, int> withdrawlDenominations;
+	long totalWithdralAmount_;
 public:
 	Withdrawl(double amount, double fee);
 	map<string, int> distributeDenom(long amount);
@@ -120,6 +123,8 @@ private:
 	bool isCash_; //True for cash, False for checks
 	map<string, int> depositedCash;
 	vector<double> depositedChecks;
+	int numOfCashLimit_;
+	int numOfCheckLimit_;
 public:
 	Deposit(bool isCash, double amount, int fiftyK, int tenK, int fiveK, int oneK, double fee);
 	bool validateDeposit();
@@ -129,10 +134,12 @@ public:
 class Transfer :public Transaction {
 private:
 	string sourceAccount_;
+	string sourceBank_;
 	string receiveAccount_;
-	//transferType type;
+	string receiveBank_;
+	bool cashToAccount_; // true: cash->account, false account->account
 public:
-	Transfer(ATM* t_atm, string sourceAccount, string receiveAccount);
+	Transfer(bool cashtoAccount, long amount, double fee, string receiveAccount, string receiveBank);
 	void validateAccounts();
 	void execute() override;
 	void calculateFee() override;
@@ -231,11 +238,30 @@ ATM::ATM(int atmID, bool singleBank, bool unilingual, int fiftyK, int tenK, int 
 long ATM::getAvailableCash() {
 	return availableCash_["50000won"], availableCash_["10000won"], availableCash_["5000won"], availableCash_["1000won"];
 }
-void ATM::updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK) { //input must include +,-
+bool ATM::updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK) { //input must include +,-
+	//check if bills are sufficient
+	if (availableCash_["50000won"] + fiftyK < 0) {
+		cout << "Insufficient 50000won bills\n";
+		return false;
+	}
+	if (availableCash_["10000won"] + tenK < 0) {
+		cout << "Insufficient 10000won bills\n";
+		return false;
+	}
+	if (availableCash_["5000won"] + fiveK < 0) {
+		cout << "Insufficient 5000won bills\n";
+		return false;
+	}
+	if (availableCash_["1000won"] + oneK < 0) {
+		cout << "Insufficient 1000won bills\n";
+		return false;
+	}
+	//update available cash
 	availableCash_["50000won"] += fiftyK;
 	availableCash_["10000won"] += tenK;
 	availableCash_["5000won"] += fiveK;
 	availableCash_["1000won"] += oneK;
+	return true;
 }
 //---------------------------------------------------------------------------
 
@@ -257,6 +283,7 @@ Withdrawl::Withdrawl(double amount, double fee) :Transaction(amount, fee) {
 	transactionType_ = "Withdrawl";
 	amount_ = amount;
 	fee_ = fee;
+	totalWithdralAmount_ = 0;
 }
 map<string,int> Withdrawl::distributeDenom(long amount) {
 	if (amount < 1000) {
@@ -285,14 +312,20 @@ map<string,int> Withdrawl::distributeDenom(long amount) {
 	return withdrawlDenominations;
 }
 void Withdrawl::execute() {
+	
+	//lower atm's available cash
+	if (!atm_->updateAvailableCash(-withdrawlDenominations["50000won"], -withdrawlDenominations["10000won"], -withdrawlDenominations["5000won"], -withdrawlDenominations["1000won"])) {
+		return;
+	}
+	//if withdrawl session > 3 -> no withdrawl allowed, new withdrawl session
+	
 	//dispense to user
 	for (std::map<std::string, int>::iterator it = withdrawlDenominations.begin(); it != withdrawlDenominations.end(); ++it) {
 		std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
 	}
 	// decrease ATM cash
-	atm_->updateAvailableCash(-withdrawlDenominations["50000won"], -withdrawlDenominations["10000won"], -withdrawlDenominations["5000won"], -withdrawlDenominations["1000won"]);
 	// decrease account balance
-
+	// fee charging from account
 }
 //---------------------------------------------------------------------------
 
@@ -307,29 +340,69 @@ Deposit::Deposit(bool isCash, double amount, int fiftyK, int tenK, int fiveK, in
 	depositedCash["5000won"] = 0;
 	depositedCash["1000won"] = 0;
 	vector<double> depositedChecks;
+	numOfCashLimit_ = 50;
+	numOfCheckLimit_ = 30;
 }
 bool Deposit::validateDeposit() {
 	if (isCash_) { //cash
 		int total_num_of_cash = depositedCash["50000won"] + depositedCash["10000won"] + depositedCash["5000won"] + depositedCash["1000won"];
-		if (total_num_of_cash > 50) {
+		if (total_num_of_cash > numOfCashLimit_) {
 			cout << "Total amount of cash should be under 50" << endl;
 			return false;
 		}
 		else return true;
 	}
 	else { //checks
-		
+		//total amount of checks should be under 30
 	}	
 }
 void Deposit::execute() {
-	depositedCash["50000 won"]
+	// fee charging by adding new cash
+	// fee adding to depositedCash
+
+	// add to account
+	
+	// add to ATM available cash
+	if (isCash_) {
+		atm_->updateAvailableCash(depositedCash["50000won"], depositedCash["10000won"], depositedCash["5000won"], depositedCash["1000won"]);
+		cout << "Cash Deposit Completed" << endl;
+		//account update using amount_
+	}
+	else {
+		//depositedCheck update
+		//acount update using amount_
+	}
 }
 
-void calculateFee();
+void calculateFee() {}
 //---------------------------------------------------------------------------
 
 //Transfer Member Function Defined
-Transfer::Transfer(ATM* t_atm, string sourceAccount, string receiveAccount) :Transaction(t_atm) {
+Transfer::Transfer(bool cashtoAccount, long amount, double fee, string receiveAccount, string receiveBank):Transaction(amount, fee) {
 	transactionType_ = "Transfer";
+	amount_ = amount;
+	fee_ = fee;
+	receiveAccount_ = receiveAccount;
+	receiveBank_ = receiveBank;
+	cashToAccount_ = cashtoAccount;
 }
+void Transfer::validateAccounts() {
+	//check if the sourceaccount and receiveaccount is both valid
+}
+void Transfer:: execute() {
+	if (cashToAccount_) { //cash-account
+		// let user to insert cash with denomination + fee
+		// (insert cash-fee) == amount?
+		// update ATM available
+		// update receiveaccount balance
+	}
+	else { //account-account
+		// let user to insert sourceAccount and Bank
+		//sourceAccount_ = sourceAccount;
+		//sourceBank_ = sourceBank;
+		// fee charging from sourceaccount
+		// update receiveaccount balance
+	}
+}
+void Transfer::calculateFee() {}
 //---------------------------------------------------------------------------
