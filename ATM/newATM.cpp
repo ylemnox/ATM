@@ -96,9 +96,10 @@ private:
 	Bank* ownerBank_;
 	bool unilingual_;
 	map<string,int> availableCash_;
+	vector<Bank*> interactableBanks_;
 	
 public:
-	ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual,  int fiftyK, int tenK, int fiveK, int oneK);
+	ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual,  int fiftyK, int tenK, int fiveK, int oneK, vector<Bank*>interactableBanks);
 	
 	//getter, setter
 	long getAvailableCash();
@@ -110,7 +111,7 @@ public:
 	bool isVaildCard(Card* insertedCard);
 	string getCardPasswordFromBank(string cardNumber);
 
-	void updateAccountBalance(string transactionType, string accountnumber,  long amount);
+	bool updateAccountBalance(string transactionType, string accountnumber,  long amount);
 	void updateBankFund(long amount);
 };
 class Transaction {
@@ -140,7 +141,7 @@ public:
 	Withdrawl(ATM* atm, long amount, double fee, Session* session);
 	map<string, int> distributeDenom(long amount);
 	bool execute() override;
-	//void calculateFee() override;
+	void calculateFee() override;
 };
 class Deposit :public Transaction{
 private:
@@ -166,7 +167,7 @@ public:
 	Transfer(ATM* atm, bool cashtoAccount, long amount, double fee, string receiveAccount, string receiveBank, Session* session);
 	void validateAccounts();
 	bool execute() override;
-	//void calculateFee() override;
+	void calculateFee() override;
 };
 class Session {
 private:
@@ -185,6 +186,8 @@ public:
 
 	string getCurrentSessionCardNumber();
 	string getCurrentSessionCardBank();
+	string getCurrentSessionCardAccountNumber();
+	
 };
 
 //Bank Member Function Defined-----------------------------------------------
@@ -287,7 +290,7 @@ bool Card::isLocked() {
 //---------------------------------------------------------------------------
 
 //ATM Member Function Defined
-ATM::ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual, int fiftyK, int tenK, int fiveK, int oneK) {
+ATM::ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual, int fiftyK, int tenK, int fiveK, int oneK, vector<Bank*> interactableBanks) {
 	atmID_ = atmID;
 	singleBank_ = singleBank;
 	unilingual_ = unilingual;
@@ -297,6 +300,7 @@ ATM::ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unil
 	availableCash_["10000won"] = tenK;
 	availableCash_["5000won"] = fiveK;
 	availableCash_["1000won"] = oneK;
+	interactableBanks_ = interactableBanks;
 	cout << "ATM Constructed (ATM ID: " << atmID_ << ", Unilingual: " << unilingual_ << ")\n";
 	cout << "Initial amount of Denomination\n";
 	cout << "[50000won]: " << availableCash_["50000won"] << endl;
@@ -353,12 +357,19 @@ bool ATM::isVaildCard(Card* insertedCard) {
 string ATM::getCardPasswordFromBank(string cardNumber) {
 	return ownerBank_->findPasswordOfCard(cardNumber);
 }
-void ATM::updateAccountBalance(string transactionType, string accountnumber, long amount) {
+bool ATM::updateAccountBalance(string transactionType, string accountnumber, long amount) {
 	Account* currAccount = ownerBank_->findAccountByNumber(accountnumber);
-	currAccount->accountBalanceUpdate(transactionType, amount);
+	if (currAccount->getBalance() < abs(amount)) {
+		cout << "Insufficient Balance\n";
+		return false;
+	}
+	else{
+		currAccount->accountBalanceUpdate(transactionType, amount);
+		return true;
+	}
 }
 void ATM::updateBankFund(long amount) {
-	ownerBank_->addFunds(amount);
+	ownerBank_->updateFunds(amount);
 }
 //---------------------------------------------------------------------------
 
@@ -410,21 +421,61 @@ map<string,int> Withdrawl::distributeDenom(long amount) {
 }
 bool Withdrawl::execute() {
 	
+	// decrease account balance
+	bool success = atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardAccountNumber(), amount_);
+	if (!success) return false;
+	calculateFee();
 	//lower atm's available cash
 	if (!atm_->updateAvailableCash(-withdrawlDenominations["50000won"], -withdrawlDenominations["10000won"], -withdrawlDenominations["5000won"], -withdrawlDenominations["1000won"])) {
 		return false;
 	}
-	// decrease account balance
-	
 	//dispense to user
 	for (std::map<std::string, int>::iterator it = withdrawlDenominations.begin(); it != withdrawlDenominations.end(); ++it) {
 		std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
 	}
-	// decrease ATM cash
-	atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardNumber(), amount_);
 	// fee charging from account
 	return true;
 }	
+void Withdrawl::calculateFee() {
+	if (atm_->isSingleBank()) { //primary로만 가능
+		cout << "1000 won will be paid from your account for withdrawl\n";
+		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName()) {
+			if (atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardAccountNumber(), 1000)) {
+				cout << "Fee charged\n";
+				atm_->updateBankFund(1000);
+				atm_->updateAvailableCash(0, 0, 0, 1);
+			}
+		}
+	}
+	else { //multibank
+		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName()) {
+			cout << "Insert 1000 won into slot for Deposit. Slot: ";
+			cin >> fee_;
+			while (fee_ != 1000) {
+				cout << "Wrong Amount. Inset 1000 won again into slot. Slot:";
+				cin >> fee_;
+			}
+			if (atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardAccountNumber(), 1000)) {
+				cout << "Fee charged\n";
+				atm_->updateBankFund(1000);
+				atm_->updateAvailableCash(0, 0, 0, 1);
+			}
+		}
+		else {
+			cout << "Insert 2000 won into slot for Withdrawl. Slot: ";
+			cin >> fee_;
+			while (fee_ != 2000) {
+				cout << "Wrong Amount. Inset 2000 won again into slot. Slot:";
+				cin >> fee_;
+			}
+			if (atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardAccountNumber(), 2000)) {
+				cout << "Fee charged\n";
+				atm_->updateAvailableCash(0, 0, 0, 2);
+				atm_->updateBankFund(2000);
+			}
+		}
+	}
+}
 //---------------------------------------------------------------------------
 
 //Deposit Member Function Defined                                                                                             //how can I handle checks deposit???
@@ -453,16 +504,16 @@ bool Deposit::validateDeposit() {
 	}	
 }
 bool Deposit::execute() {
-	// fee charging by adding new cash
-	// fee adding to depositedCash
+	calculateFee();
 
 	// add to account
-	atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardNumber(), amount_);
+	
 	// add to ATM available cash
 	if (isCash_) {
 		atm_->updateAvailableCash(depositedCash["50000won"], depositedCash["10000won"], depositedCash["5000won"], depositedCash["1000won"]);
+		atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardNumber(), amount_);
 		cout << "Cash Deposit Completed" << endl;
-		//account update using amount_
+		
 		return true;
 	}
 	else {
@@ -472,12 +523,13 @@ bool Deposit::execute() {
 		return true;
 	}
 }
-
 void Deposit::calculateFee() {
 	if (atm_->isSingleBank()) { //primary로만 가능
 		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName()) {
+			cout << "Insert 1000 won into slot for Deposit. Slot: ";
+			cin >> fee_;
 			while (fee_ != 1000) {
-				cout << "Wrong Amount. Inset 1000 won again into slot. Slot:";
+				cout << "Wrong Amount. Insert 1000 won again into slot. Slot:";
 				cin >> fee_;
 			}
 			cout << "Fee charged\n";
@@ -487,6 +539,8 @@ void Deposit::calculateFee() {
 	}
 	else { //multibank
 		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName()) {
+			cout << "Insert 1000 won into slot for Deposit. Slot: ";
+			cin >> fee_;
 			while (fee_ != 1000) {
 				cout << "Wrong Amount. Inset 1000 won again into slot. Slot:";
 				cin >> fee_;
@@ -496,6 +550,8 @@ void Deposit::calculateFee() {
 			atm_->updateBankFund(1000);
 		}
 		else {
+			cout << "Insert 2000 won into slot for Deposit. Slot: ";
+			cin >> fee_;
 			while (fee_ != 2000) {
 				cout << "Wrong Amount. Inset 2000 won again into slot. Slot:";
 				cin >> fee_;
@@ -519,24 +575,62 @@ void Transfer::validateAccounts() {
 	//check if the sourceaccount and receiveaccount is both valid
 }
 bool Transfer:: execute() {
+	calculateFee();
 	if (cashToAccount_) { //cash-account
 		// let user to insert cash with denomination + fee
 		// (insert cash-fee) == amount?
 		// update ATM available
-		atm_->updateAccountBalance(transactionType_ + "Receive", session_->getCurrentSessionCardNumber(), amount_);
+		atm_->updateAccountBalance(transactionType_ + "Receive", session_->getCurrentSessionCardAccountNumber(), amount_);
 		return true;
 	}
 	else { //account-account
 		
-		// fee charging from sourceaccount
 		// update sender balance
-		atm_->updateAccountBalance(transactionType_ + "Send", session_->getCurrentSessionCardNumber(), amount_);
+		atm_->updateAccountBalance(transactionType_ + "Send", session_->getCurrentSessionCardAccountNumber(), amount_);
 		// update receiveaccount balance
-		atm_->updateAccountBalance(transactionType_ + "Receive", session_->getCurrentSessionCardNumber(), amount_);
+		atm_->updateAccountBalance(transactionType_ + "Receive", atm_->, amount_);
 		return true;
 	}
 }
-//void Transfer::calculateFee() {}
+void Transfer::calculateFee() {
+	if (cashToAccount_) {
+		cout << "Insert 1000 won into slot for Transfer. Slot: ";
+		cin >> fee_;
+		while (fee_ != 1000) {
+			cout << "Wrong Amount. Insert 1000 won again into slot. Slot:";
+			cin >> fee_;
+		}
+	}
+	else {
+		//primary to primary
+		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName() && atm_->getOwnerBankName() == receiveBank_) {
+			cout << "2000 won will be paid from your account for transfer\n";
+			if (atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardAccountNumber(), 1000)) {
+				cout << "Fee charged\n";
+				atm_->updateBankFund(2000);
+				atm_->updateAvailableCash(0, 0, 0, 2);
+			}
+		}
+		//non to non
+		else if (session_->getCurrentSessionCardBank() != atm_->getOwnerBankName() && atm_->getOwnerBankName() != receiveBank_) {
+			cout << "4000 won will be paid from your account for transfer\n";
+			if (atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardAccountNumber(), 3000)) {
+				cout << "Fee charged\n";
+				atm_->updateBankFund(4000);
+				atm_->updateAvailableCash(0, 0, 0, 4);
+			}
+		}
+
+		else {
+			cout << "3000 won will be paid from your account for transfer\n";
+			if (atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardAccountNumber(), 3000)) {
+				cout << "Fee charged\n";
+				atm_->updateBankFund(3000);
+				atm_->updateAvailableCash(0, 0, 0, 3);
+			}
+		}
+	}	
+}
 //---------------------------------------------------------------------------
 
 //Session Member Function Defined
@@ -579,6 +673,9 @@ string Session::getCurrentSessionCardNumber() {
 }
 string Session::getCurrentSessionCardBank() {
 	return insertedCard_->getCardBankName();
+}
+string Session::getCurrentSessionCardAccountNumber() {
+	return insertedCard_->getAccountNumber();
 }
 //---------------------------------------------------------------------------
 
@@ -671,6 +768,7 @@ int main() {
 		int tenK;
 		int fiveK;
 		int oneK;
+		vector<Bank*> interactableBanks;
 
 		cout << "Bank Name: ";
 		cin >> atmbankName;
@@ -678,7 +776,17 @@ int main() {
 		cin >> atmID;
 		cout << "Press S for Single Bank ATM, M for Multi Bank ATM: ";
 		cin >> isSingleBank;
-		if (isSingleBank == "S") singleBank = true;
+		if (isSingleBank == "S") {
+			singleBank = true;
+			string tempBank;
+			for (int i = 1; i <= bankCounter; i++) {
+				cout << "Write Name of Existing Bank One by One";
+				cin >> tempBank;
+				for (Bank bank : banks) {
+					if (bank.getBankName() == tempBank) interactableBanks.push_back(&bank);
+				}
+			}
+		}
 		else if (isSingleBank == "M") singleBank = false;
 		else {
 			cout << "Wrong Selection\n";
@@ -706,7 +814,7 @@ int main() {
 		for (Bank bank : banks) {
 			if (bank.getBankName() == atmbankName) {
 				Bank* ownerBank = &bank;
-				ATMs.push_back(ATM(atmID, singleBank, atmbankName, ownerBank, unilingual, fiftyK, tenK, fiveK, oneK));
+				ATMs.push_back(ATM(atmID, singleBank, atmbankName, ownerBank, unilingual, fiftyK, tenK, fiveK, oneK, interactableBanks));
 			}
 			else {
 				cout << "No Bank for this ATM exists\n";
