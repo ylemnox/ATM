@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 using namespace std;
+
 class Bank;
 class Account;
 class Card;
@@ -33,7 +34,9 @@ public:
 	Account* findAccountByNumber(string accountNumber);
 	vector<Account*> findAccountsByOwner(string owner);
 	string findPasswordOfCard(string cardnumber);
-
+	
+	//Bank Fund management
+	void updateFunds(long amount);
 };
 class Account {
 private:
@@ -94,19 +97,21 @@ private:
 	bool unilingual_;
 	map<string,int> availableCash_;
 	
-
-
 public:
 	ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual,  int fiftyK, int tenK, int fiveK, int oneK);
 	
 	//getter, setter
 	long getAvailableCash();
+	string getOwnerBankName() { return primaryBankName_; }
 	bool isSingleBank() { return singleBank_; } // return true if singlebank(only primary bank card), false if multibank(every bank card)
 	//update availableCash when deposit, withdrawl
 	bool updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK); //return update o,x
 	//user authorization
 	bool isVaildCard(Card* insertedCard);
 	string getCardPasswordFromBank(string cardNumber);
+
+	void updateAccountBalance(string transactionType, string accountnumber,  long amount);
+	void updateBankFund(long amount);
 };
 class Transaction {
 protected:
@@ -115,23 +120,24 @@ protected:
 	ATM* atm_ = nullptr;
 	//DateTime timestamp;
 	//TransactionStatus status
-	double amount_;
+	long amount_;
 	double fee_;
+	Session* session_;
 
 public:
 	static int nextID_;
-	Transaction(double amount, double fee);
+	Transaction(ATM* atm, long amount, double fee, Session* session);
 	virtual bool execute() = 0;
 	virtual void validate() = 0;
-	//virtual void calculateFee() = 0;
+	virtual void calculateFee() = 0;
 	void describe();
 };
 class Withdrawl :public Transaction {
 private:
 	map<string, int> withdrawlDenominations;
-	long totalWithdralAmount_;
+	long totalWithdrawlAmount_;
 public:
-	Withdrawl(double amount, double fee);
+	Withdrawl(ATM* atm, long amount, double fee, Session* session);
 	map<string, int> distributeDenom(long amount);
 	bool execute() override;
 	//void calculateFee() override;
@@ -144,10 +150,10 @@ private:
 	int numOfCashLimit_;
 	int numOfCheckLimit_;
 public:
-	Deposit(bool isCash, double amount, int fiftyK, int tenK, int fiveK, int oneK, double fee);
+	Deposit(ATM* atm, bool isCash, long amount, int fiftyK, int tenK, int fiveK, int oneK, double fee, Session* session);
 	bool validateDeposit();
-	bool execute() override=0;
-	//void calculateFee() override=0;
+	bool execute() override;
+	void calculateFee() override;
 };
 class Transfer :public Transaction {
 private:
@@ -157,7 +163,7 @@ private:
 	string receiveBank_;
 	bool cashToAccount_; // true: cash->account, false account->account
 public:
-	Transfer(bool cashtoAccount, long amount, double fee, string receiveAccount, string receiveBank);
+	Transfer(ATM* atm, bool cashtoAccount, long amount, double fee, string receiveAccount, string receiveBank, Session* session);
 	void validateAccounts();
 	bool execute() override;
 	//void calculateFee() override;
@@ -169,12 +175,16 @@ private:
 	int wrongPasswordAttempts_;
 	bool isAuthenticated_;
 	ATM* atm_;
+	int withdrawlTimes = 0;
 public:
 	Session(ATM* currATM, Card* card);
 	~Session();
 	bool authenticate(string pw);
 	void addTransaction(Transaction* currTransaction);
 	void endSession(); //whenever user wants or no cash available
+
+	string getCurrentSessionCardNumber();
+	string getCurrentSessionCardBank();
 };
 
 //Bank Member Function Defined-----------------------------------------------
@@ -212,6 +222,7 @@ string Bank::findPasswordOfCard(string cardnumber) {
 		cout << "NO card found in this Bank DB\n";
 	}
 }
+void Bank::updateFunds(long amount) { funds_ += amount; }
 //---------------------------------------------------------------------------
 
 //Account Member Function Defined--------------------------------------------
@@ -222,14 +233,21 @@ Account::Account(string bankName, string accountNumber, string ownerName, long i
 	balance_ = initBalance;
 }
 void Account::accountBalanceUpdate(string transactionType, long amount) {
-	if (transactionType == "withdrawl") {
+	if (transactionType == "Withdrawl") {
 		balance_ -= amount;
+		cout << "Account Balance Updated for withdrawl\n";
 	}
-	if (transactionType == "deposit") {
+	if (transactionType == "Deposit") {
 		balance_ += amount;
+		cout << "Account Balance Updated for Deposit\n";
 	}
-	if (transactionType == "transfer") {
+	if (transactionType == "Transfer Send") {
 		balance_ -= amount;
+		cout << "Sender Account Balance Updated for Transfer \n";
+	}
+	if (transactionType == "Transfer Receive") {
+		balance_ -= amount;
+		cout << "Receiver Account Balance Updated for Transfer \n";
 	}
 }
 bool Account::validateAccountNumber(string accountNum) {
@@ -335,15 +353,23 @@ bool ATM::isVaildCard(Card* insertedCard) {
 string ATM::getCardPasswordFromBank(string cardNumber) {
 	return ownerBank_->findPasswordOfCard(cardNumber);
 }
-
+void ATM::updateAccountBalance(string transactionType, string accountnumber, long amount) {
+	Account* currAccount = ownerBank_->findAccountByNumber(accountnumber);
+	currAccount->accountBalanceUpdate(transactionType, amount);
+}
+void ATM::updateBankFund(long amount) {
+	ownerBank_->addFunds(amount);
+}
 //---------------------------------------------------------------------------
 
 //Transaction Member Function Defined
 int Transaction::nextID_ = 0;
-Transaction::Transaction(double amount, double fee) {
+Transaction::Transaction(ATM* atm, long amount, double fee, Session* session) {
 	transID_ = nextID_++;
 	amount_ = amount;
 	fee_ = fee;
+	atm_ = atm;
+	session_ = session;
 }
 void Transaction::describe() {
 	cout << "Transaction ID: " << transID_ << " " << transactionType_ << "Amount: " << amount_ << endl;
@@ -352,11 +378,9 @@ void Transaction::describe() {
 //---------------------------------------------------------------------------
 
 //Withdrawl Member Function Defined
-Withdrawl::Withdrawl(double amount, double fee) :Transaction(amount, fee) {
+Withdrawl::Withdrawl(ATM* atm, long amount, double fee, Session* session) :Transaction(atm, amount, fee, session) {
 	transactionType_ = "Withdrawl";
-	amount_ = amount;
-	fee_ = fee;
-	totalWithdralAmount_ = 0;
+	totalWithdrawlAmount_ = 0;
 }
 map<string,int> Withdrawl::distributeDenom(long amount) {
 	if (amount < 1000) {
@@ -390,26 +414,22 @@ bool Withdrawl::execute() {
 	if (!atm_->updateAvailableCash(-withdrawlDenominations["50000won"], -withdrawlDenominations["10000won"], -withdrawlDenominations["5000won"], -withdrawlDenominations["1000won"])) {
 		return false;
 	}
-	//if withdrawl session > 3 -> no withdrawl allowed, new withdrawl session
-	
 	// decrease account balance
-	// 
+	
 	//dispense to user
 	for (std::map<std::string, int>::iterator it = withdrawlDenominations.begin(); it != withdrawlDenominations.end(); ++it) {
 		std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
 	}
 	// decrease ATM cash
-	
+	atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardNumber(), amount_);
 	// fee charging from account
 	return true;
 }	
 //---------------------------------------------------------------------------
 
 //Deposit Member Function Defined                                                                                             //how can I handle checks deposit???
-Deposit::Deposit(bool isCash, double amount, int fiftyK, int tenK, int fiveK, int oneK, double fee):Transaction(amount, fee){
+Deposit::Deposit(ATM* atm, bool isCash, long amount, int fiftyK, int tenK, int fiveK, int oneK, double fee, Session* session):Transaction(atm, amount, fee, session){
 	transactionType_ = "Deposit";
-	amount_ = amount;
-	fee_ = fee;
 	isCash_ = isCash; //True for cash, False for checks
 	depositedCash["50000won"] = 0;
 	depositedCash["10000won"] = 0;
@@ -437,7 +457,7 @@ bool Deposit::execute() {
 	// fee adding to depositedCash
 
 	// add to account
-	
+	atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardNumber(), amount_);
 	// add to ATM available cash
 	if (isCash_) {
 		atm_->updateAvailableCash(depositedCash["50000won"], depositedCash["10000won"], depositedCash["5000won"], depositedCash["1000won"]);
@@ -447,19 +467,50 @@ bool Deposit::execute() {
 	}
 	else {
 		//depositedCheck update
+		// 
 		//acount update using amount_
 		return true;
 	}
 }
 
-//void calculateFee() {}
+void Deposit::calculateFee() {
+	if (atm_->isSingleBank()) { //primary로만 가능
+		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName()) {
+			while (fee_ != 1000) {
+				cout << "Wrong Amount. Inset 1000 won again into slot. Slot:";
+				cin >> fee_;
+			}
+			cout << "Fee charged\n";
+			atm_->updateAvailableCash(0, 0, 0, 1);
+			atm_->updateBankFund(1000);
+		}
+	}
+	else { //multibank
+		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName()) {
+			while (fee_ != 1000) {
+				cout << "Wrong Amount. Inset 1000 won again into slot. Slot:";
+				cin >> fee_;
+			}
+			cout << "Fee charged\n";
+			atm_->updateAvailableCash(0, 0, 0, 1);
+			atm_->updateBankFund(1000);
+		}
+		else {
+			while (fee_ != 2000) {
+				cout << "Wrong Amount. Inset 2000 won again into slot. Slot:";
+				cin >> fee_;
+			}
+			cout << "Fee charged\n";
+			atm_->updateAvailableCash(0, 0, 0, 2);
+			atm_->updateBankFund(2000);
+		}
+	}
+}
 //---------------------------------------------------------------------------
 
 //Transfer Member Function Defined
-Transfer::Transfer(bool cashtoAccount, long amount, double fee, string receiveAccount, string receiveBank):Transaction(amount, fee) {
+Transfer::Transfer(ATM* atm, bool cashtoAccount, long amount, double fee, string receiveAccount, string receiveBank, Session* session):Transaction(atm, amount, fee, session) {
 	transactionType_ = "Transfer";
-	amount_ = amount;
-	fee_ = fee;
 	receiveAccount_ = receiveAccount;
 	receiveBank_ = receiveBank;
 	cashToAccount_ = cashtoAccount;
@@ -472,15 +523,16 @@ bool Transfer:: execute() {
 		// let user to insert cash with denomination + fee
 		// (insert cash-fee) == amount?
 		// update ATM available
-		// update receiveaccount balance
+		atm_->updateAccountBalance(transactionType_ + "Receive", session_->getCurrentSessionCardNumber(), amount_);
 		return true;
 	}
 	else { //account-account
-		// let user to insert sourceAccount and Bank
-		//sourceAccount_ = sourceAccount;
-		//sourceBank_ = sourceBank;
+		
 		// fee charging from sourceaccount
+		// update sender balance
+		atm_->updateAccountBalance(transactionType_ + "Send", session_->getCurrentSessionCardNumber(), amount_);
 		// update receiveaccount balance
+		atm_->updateAccountBalance(transactionType_ + "Receive", session_->getCurrentSessionCardNumber(), amount_);
 		return true;
 	}
 }
@@ -521,6 +573,12 @@ void Session::endSession() {
 		transaction->describe();
 	}
 
+}
+string Session::getCurrentSessionCardNumber() {
+	return insertedCard_->getCardNumber();
+}
+string Session::getCurrentSessionCardBank() {
+	return insertedCard_->getCardBankName();
 }
 //---------------------------------------------------------------------------
 
