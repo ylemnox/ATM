@@ -34,7 +34,7 @@ public:
 	Account* findAccountByNumber(string accountNumber);
 	vector<Account*> findAccountsByOwner(string owner);
 	string findPasswordOfCard(string cardnumber);
-	
+	void updateAccount(string transactiontype, string accountNumber, long amount);
 	//Bank Fund management
 	void updateFunds(long amount);
 };
@@ -104,6 +104,7 @@ public:
 	//getter, setter
 	long getAvailableCash();
 	string getOwnerBankName() { return primaryBankName_; }
+	Bank* findGetInteractableBank(string bankname);
 	bool isSingleBank() { return singleBank_; } // return true if singlebank(only primary bank card), false if multibank(every bank card)
 	//update availableCash when deposit, withdrawl
 	bool updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK); //return update o,x
@@ -150,8 +151,10 @@ private:
 	vector<double> depositedChecks;
 	int numOfCashLimit_;
 	int numOfCheckLimit_;
+	string receiveAccount_;
+	string receiveBankName_;
 public:
-	Deposit(ATM* atm, bool isCash, long amount, int fiftyK, int tenK, int fiveK, int oneK, double fee, Session* session);
+	Deposit(ATM* atm, bool isCash, long amount, int fiftyK, int tenK, int fiveK, int oneK, double fee, Session* session, string receiveAccount, string receiveBank);
 	bool validateDeposit();
 	bool execute() override;
 	void calculateFee() override;
@@ -224,6 +227,10 @@ string Bank::findPasswordOfCard(string cardnumber) {
 		if (card->getCardNumber() == cardnumber) return card->getPassword();
 		cout << "NO card found in this Bank DB\n";
 	}
+}
+void Bank::updateAccount(string transactiontype, string accountNumber, long amount) {
+	Account* tempAcc = findAccountByNumber(accountNumber);
+	tempAcc->accountBalanceUpdate(transactiontype, amount);
 }
 void Bank::updateFunds(long amount) { funds_ += amount; }
 //---------------------------------------------------------------------------
@@ -310,6 +317,12 @@ ATM::ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unil
 }
 long ATM::getAvailableCash() {
 	return availableCash_["50000won"], availableCash_["10000won"], availableCash_["5000won"], availableCash_["1000won"];
+}
+Bank* ATM::findGetInteractableBank(string bankname) {
+	for (Bank* bank : interactableBanks_) {
+		if (bank->getBankName() == bankname) return bank;
+	}
+	cout << bankname << " is not existing bank\n";
 }
 bool ATM::updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK) { //input must include +,-
 	//check if bills are sufficient
@@ -479,7 +492,7 @@ void Withdrawl::calculateFee() {
 //---------------------------------------------------------------------------
 
 //Deposit Member Function Defined                                                                                             //how can I handle checks deposit???
-Deposit::Deposit(ATM* atm, bool isCash, long amount, int fiftyK, int tenK, int fiveK, int oneK, double fee, Session* session):Transaction(atm, amount, fee, session){
+Deposit::Deposit(ATM* atm, bool isCash, long amount, int fiftyK, int tenK, int fiveK, int oneK, double fee, Session* session, string receiveAccount, string receiveBank):Transaction(atm, amount, fee, session){
 	transactionType_ = "Deposit";
 	isCash_ = isCash; //True for cash, False for checks
 	depositedCash["50000won"] = 0;
@@ -489,6 +502,8 @@ Deposit::Deposit(ATM* atm, bool isCash, long amount, int fiftyK, int tenK, int f
 	vector<double> depositedChecks;
 	numOfCashLimit_ = 50;
 	numOfCheckLimit_ = 30;
+	receiveAccount_ = receiveAccount;
+	receiveBankName_ = receiveBank;
 }
 bool Deposit::validateDeposit() {
 	if (isCash_) { //cash
@@ -510,10 +525,16 @@ bool Deposit::execute() {
 	
 	// add to ATM available cash
 	if (isCash_) {
-		atm_->updateAvailableCash(depositedCash["50000won"], depositedCash["10000won"], depositedCash["5000won"], depositedCash["1000won"]);
-		atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardNumber(), amount_);
-		cout << "Cash Deposit Completed" << endl;
-		
+		if (session_->getCurrentSessionCardBank() == atm_->getOwnerBankName()) { //deposit into primary bank
+			atm_->updateAvailableCash(depositedCash["50000won"], depositedCash["10000won"], depositedCash["5000won"], depositedCash["1000won"]);
+			atm_->updateAccountBalance(transactionType_, session_->getCurrentSessionCardNumber(), amount_);
+			cout << "Cash Deposit Completed" << endl;
+		}
+		else { //deposit to non-primary bank
+			atm_->updateAvailableCash(depositedCash["50000won"], depositedCash["10000won"], depositedCash["5000won"], depositedCash["1000won"]);
+			atm_->findGetInteractableBank(receiveBankName_)->
+		}
+	
 		return true;
 	}
 	else {
