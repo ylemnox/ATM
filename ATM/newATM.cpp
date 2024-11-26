@@ -18,10 +18,8 @@ class Bank {
 private:
 	string bankName_;
 	vector<Account*> accounts_; //account DB
-	long long funds_;
 public:
-	Bank(string bankName, /*bool primaryBank*/ long long initialfund);
-
+	Bank(string bankName);
 	//getter, setter
 	string getBankName() const { return bankName_; }
 	//bool isPrimaryBank() const { return primaryBank_; }
@@ -34,7 +32,6 @@ public:
 	string findPasswordOfCard(string cardnumber);
 	void updateAccount(string transactiontype, string accountNumber, long amount);
 	//Bank Fund management
-	void updateFunds(long amount);
 };
 class Account {
 private:
@@ -91,7 +88,7 @@ public:
 };*/
 class ATM {
 private:
-	int atmID_; //6-digit
+	string atmID_; //6-digit
 	bool singleBank_; //ATM type
 	string primaryBankName_;
 	Bank* ownerBank_;
@@ -101,24 +98,23 @@ private:
 	vector<Bank*> interactableBanks_;
 	vector<string> transactionHistoryOfATM_;
 public:
-	ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual,  int fiftyK, int tenK, int fiveK, int oneK, vector<Bank*>interactableBanks);
+	ATM(string atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual,  long fiftyK, long tenK, long fiveK, long oneK, vector<Bank*>interactableBanks);
 	
 	//getter, setter
 	std::map<std::string, long> getAvailableCash();
-	int getATMID() { return atmID_; }
+	string getATMID() { return atmID_; }
 	string getOwnerBankName() { return primaryBankName_; }
 	Bank* getCardBank(string cardNumber);
 	Bank* findGetInteractableBank(string bankname);
 	bool isSingleBank() { return singleBank_; } // return true if singlebank(only primary bank card), false if multibank(every bank card)
 	//update availableCash when deposit, withdrawl
-	bool updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK); //return update o,x
+	bool updateAvailableCash(long fiftyK, long tenK, long fiveK, long oneK); //return update o,x
 	void depositChecks(string check, long amount);
 	//user authorization
 	bool isVaildCard(string cardBank);
 	string getCardPasswordFromBank(string cardNumber);
 	void addTransactionHistoryOfATM(string history);
 	bool updateAccountBalance(string transactionType, string accountnumber,  long amount);
-	void updateBankFund(long amount);
 };
 class Transaction {
 protected:
@@ -140,13 +136,13 @@ public:
 };
 class Withdrawl :public Transaction {
 private:
-	map<string, int> withdrawlDenominations;
+	map<string, long> withdrawlDenominations;
 	//long totalWithdrawlAmount_;
 	long fee_;
 	
 public:
 	Withdrawl(ATM* atm, Session* session);
-	map<string, int> distributeDenom(long amount);
+	map<string, long> distributeDenom(long amount);
 	void execute() override;
 	void calculateFee() override;
 	void describeAndSave() override;
@@ -154,9 +150,9 @@ public:
 class Deposit :public Transaction{
 private:
 	bool isCash_; //True for cash, False for checks
-	map<string, int> depositedCash;
-	int numOfCashLimit_;
-	int numOfCheckLimit_;
+	map<string, long> depositedCash;
+	long numOfCashLimit_;
+	long numOfCheckLimit_;
 public:
 	Deposit(ATM* atm, Session* session);
 	bool validateDeposit();
@@ -193,7 +189,7 @@ private:
 	string currCardAccountNumber_;
 public:
 	Session(ATM* currentATM, string cardNumber);
-	void authenticate(string pw);
+	void authenticate();
 	void execute();
 	string getCurrCardNumber() { return currCardNumber_; }
 	string getCurrCardBankName() { return currCardBankName_; }
@@ -207,11 +203,8 @@ public:
 };
 
 //Bank Member Function Defined-----------------------------------------------
-Bank::Bank(string bankName, /*bool primaryBank*/ long long initialfund) {
+Bank::Bank(string bankName) {
 	bankName_ = bankName;
-	//primaryBank_ = primaryBank;
-	funds_ = initialfund;
-	cout << bankName_ << " created. Initial Funds: " << funds_ << "won\n";
 }
 void Bank::addAccount(Account* account) {
 	accounts_.push_back(account);
@@ -264,7 +257,6 @@ void Bank::updateAccount(string transactiontype, string accountNumber, long amou
 		tempAcc->accountBalanceUpdate(transactiontype, amount);
 	}
 }
-void Bank::updateFunds(long amount) { funds_ += amount; }
 //---------------------------------------------------------------------------
 
 //Account Member Function Defined--------------------------------------------
@@ -274,8 +266,9 @@ Account::Account(string bankName, string accountNumber, string ownerName, long i
 	ownerName_ = ownerName;
 	balance_ = initBalance;
 	cardNumber_ = "1234" + accountNumber + "5678";
+	pw_ = pw;
 	cout << "Account Constructed (Account Bank name: " << accountBankName_ << ", Account Number: " << accountNumber_ <<", Owner: "<<ownerName_<<", Balance : "<<balance_<<")\n";
-	cout << "Issued Card Number (connected to " << accountNumber_ << "account is " << cardNumber_;
+	cout << "Issued Card Number (connected to " << accountNumber_ << "account is " << cardNumber_<<")\n";
 	
 }
 void Account::accountBalanceUpdate(string transactionType, long amount) {
@@ -333,23 +326,18 @@ bool Card::isLocked() {
 //---------------------------------------------------------------------------
 
 //ATM Member Function Defined
-ATM::ATM(int atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual, int fiftyK, int tenK, int fiveK, int oneK, vector<Bank*> interactableBanks) {
+ATM::ATM(string atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual, long fiftyK, long tenK, long fiveK, long oneK, vector<Bank*> interactableBanks) {
 	atmID_ = atmID;
 	singleBank_ = singleBank;
 	unilingual_ = unilingual;
 	primaryBankName_ = bankName;
 	ownerBank_ = ownerBank;
-	availableCash_["50000won"] = fiftyK;
-	availableCash_["10000won"] = tenK;
-	availableCash_["5000won"] = fiveK;
-	availableCash_["1000won"] = oneK;
+	availableCash_.insert(pair<string,long>("50000won", fiftyK));
+	availableCash_.insert(pair<string, long>("10000won", tenK));
+	availableCash_.insert(pair<string, long>("5000won", fiveK));
+	availableCash_.insert(pair<string, long>("1000won", oneK));
 	interactableBanks_ = interactableBanks;
 	cout << "ATM Constructed (ATM ID: " << atmID_ << ", Unilingual: " << unilingual_ << ")\n";
-	cout << "Initial amount of Denomination\n";
-	cout << "[50000won]: " << availableCash_["50000won"] << endl;
-	cout << "[10000won]: " << availableCash_["10000won"] << endl;
-	cout << "[5000won] : " << availableCash_["5000won"] << endl;
-	cout << "[1000won] : " << availableCash_["1000won"] << endl;
 }
 std::map<std::string, long> ATM::getAvailableCash() {
 	return availableCash_;
@@ -361,7 +349,7 @@ Bank* ATM::findGetInteractableBank(string bankname) {
 	cout << bankname << " is not existing bank\n";
 	return nullptr;
 }
-bool ATM::updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK) { //input must include +,-
+bool ATM::updateAvailableCash(long fiftyK, long tenK, long fiveK, long oneK) { //input must include +,-
 	//check if bills are sufficient
 	if (availableCash_["50000won"] + fiftyK < 0) {
 		cout << "Insufficient 50000won bills\n";
@@ -432,9 +420,6 @@ bool ATM::updateAccountBalance(string transactionType, string accountnumber, lon
 		return true;
 	}
 }
-void ATM::updateBankFund(long amount) {
-	ownerBank_->updateFunds(amount);
-}
 //---------------------------------------------------------------------------
 
 //Transaction Member Function Defined
@@ -449,8 +434,9 @@ Transaction::Transaction(ATM* atm, Session* session) {
 //Withdrawl Member Function Defined
 Withdrawl::Withdrawl(ATM* atm, Session* session) :Transaction(atm, session) {
 	transactionType_ = "Withdrawl";
+	fee_ = 0;
 }
-map<string,int> Withdrawl::distributeDenom(long amount) {
+map<string,long> Withdrawl::distributeDenom(long amount) {
 	if (amount < 1000) {
 		cout << "The amount must be bigger than 1000" << endl;
 		return withdrawlDenominations;
@@ -546,11 +532,12 @@ bool Deposit::validateDeposit() {
 		}
 		else return true;
 	}
+	return false;
 }
 void Deposit::execute() {
 	cout << "<Deposit>\n";
 	int pick = 0;
-	while (pick != 1 || pick != 2) {
+	while (pick != 1 && pick != 2) {
 		cout << "Enter 1 for Cash Deposit. Enter 2 for Check Deposit.: ";
 		cin >> pick;
 		if (pick == 1) isCash_ = true;
@@ -573,6 +560,7 @@ void Deposit::execute() {
 		long oneK;
 		cin >> oneK;
 		
+		amount_ = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000;
 		//success ==false이면 어떵할거
 		bool success;
 		success = validateDeposit();
@@ -581,14 +569,16 @@ void Deposit::execute() {
 		success = atm_->updateAvailableCash(depositedCash["50000"], depositedCash["10000"], depositedCash["5000"], depositedCash["1000"]);
 		if (!success) return ;
 		cout << "Deposit " << amount_ << " won to (" << session_->getCurrCardBankName() << " , NO: " << session_->getCurrAccountNumber() << ")\n";
+		cout << "Balance: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
 	}
 	else { //check deposit
 		cout << "Place the checks into Slot\n";
 		long totalsheet=0;
 		while (totalsheet<=30) {
-			cout << "Written Amount of this check: ";
+			cout << "Written Amount of this check: (Enter 'Stop' for Termination of Input)";
 			string check;
 			cin >> check;
+			if (check == "Stop") break;
 			cout << "How many sheets of this check: ";
 			long sheet;
 			cin >> sheet;
@@ -598,8 +588,9 @@ void Deposit::execute() {
 			amount_ += (stol(check) * sheet);
 		}
 		atm_->getCardBank(session_->getCurrCardNumber())->updateAccount(transactionType_, session_->getCurrAccountNumber(), amount_);
-		describeAndSave();
 	}
+	describeAndSave();
+	amount_ = 0;
 }
 void Deposit::calculateFee() {
 	if (atm_->getOwnerBankName() == session_->getCurrCardBankName()) {
@@ -644,6 +635,7 @@ void Deposit::describeAndSave() {
 //Transfer Member Function Defined
 Transfer::Transfer(ATM* atm, Session* session):Transaction(atm, session) {
 	transactionType_ = "Transfer";
+	fee_ = 0;
 }
 bool Transfer::validateReceiverAccounts() {
 	if (!atm_->findGetInteractableBank(receiveBankName_)) {
@@ -664,7 +656,7 @@ bool Transfer::validateReceiverAccounts() {
 void Transfer:: execute() {
 	cout << "<Transfer>\n";
 	int pick = 0;
-	while (pick != 1 || pick != 2) {
+	while (pick != 1 && pick != 2) {
 		cout << "Enter 1 for Cash-to-Account Transfer. Enter 2 for Account-to-Account Transfer.: ";
 		cin >> pick;
 		if (pick == 1) cashToAccount_ = true;
@@ -772,10 +764,8 @@ void Session::execute() {
 	}
 
 	//2. PW validation
-	cout << "Password: ";
-	string inputPW;
-	cin >> inputPW;
-	authenticate(inputPW);
+	
+	authenticate();
 	if (!isAuthenticated_) {
 		cout << "Return Card: " << currCardNumber_ << endl;
 		endSession();
@@ -800,10 +790,13 @@ void Session::execute() {
 	endSession();
 	
 }
-void Session::authenticate(string input_pw) {
+void Session::authenticate() {
 	wrongPasswordAttempts_ = 0;
+	string input_pw;
 	while (wrongPasswordAttempts_ < 3) {
-		if (input_pw == atm_->getCardPasswordFromBank(currCardNumber_)) {
+		cout << "Password: ";
+		cin >> input_pw;
+		if (input_pw == atm_->getCardBank(currCardNumber_)->findPasswordOfCard(currCardNumber_)) {
 			cout << "Correct Password\n";
 			isAuthenticated_ = true;
 			return;
@@ -811,7 +804,6 @@ void Session::authenticate(string input_pw) {
 		else {
 			wrongPasswordAttempts_++;
 			cout << "Wrong Password. Remaining Chance: " << 3 - wrongPasswordAttempts_<< endl;
-			return;
 		}
 	}
 	endSession();
@@ -831,17 +823,19 @@ void Session::endSession() {
 	cout << "Current Session End\n";
 }
 //---------------------------------------------------------------------------
-void screenShot(char slash, vector<Account> accounts, vector<ATM>atms) {
+void screenShot(char slash, vector<Account*> accounts, vector<ATM*>atms) {
 	if (slash == 47) {
-		for (ATM atm : atms) {
-			long fiftyK = atm.getAvailableCash()["50000"];
-			long tenK = atm.getAvailableCash()["10000"]; 
-			long fiveK= atm.getAvailableCash()["5000"]; 
-			long oneK = atm.getAvailableCash()["1000"];
-			cout << "ATM[SN: " << atm.getATMID() << "] remaining cash: {KRW 50000: " << fiftyK << ", KRW 10000: " << tenK << ", KRW 5000: " << fiveK << ", KRW 1000: " << oneK << "}\n";
+		for (ATM* atm : atms) {
+			long fiftyK = atm->getAvailableCash()["50000won"];
+			long tenK = atm->getAvailableCash()["10000won"];
+			long fiveK = atm->getAvailableCash()["5000won"];
+			long oneK = atm->getAvailableCash()["1000won"];
+			long total = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000;
+
+			cout << "ATM[ID: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
 		}
-		for (Account acc : accounts) {
-			cout << "Account[Bank: " << acc.getAccountBankName() << ", No : " << acc.getAccountNumber() << ", Owner : " << acc.getOwnerName() << "] balance: " << acc.getBalance() << endl;
+		for (Account* acc : accounts) {
+			cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
 		}
 	}
 
@@ -849,7 +843,170 @@ void screenShot(char slash, vector<Account> accounts, vector<ATM>atms) {
 
 
 int main() {
+	vector<Bank*> banks;  // Vector to store pointers to Bank objects
+	bool bank_status = true;
 
+	while (bank_status) {
+		string bankName;
+		cout << "Bank Name(without space): ";
+		cin >> bankName;
+
+		// Dynamically allocate a new Bank object and store its pointer in the vector
+		Bank* newBank = new Bank(bankName);
+		banks.push_back(newBank);
+
+		cout << "---------------------------------------";
+
+		// More addition
+		char continue_input;
+		cout << "Add another bank? (y/n): ";
+		cin >> continue_input;
+		if (continue_input != 'y' && continue_input != 'Y') {
+			bank_status = false;
+		}
+	}
+
+	for (Bank* bank : banks) {
+		cout << bank->getBankName() << " ";
+	}
+	cout << " \n";
+	cout << endl;
+
+	cout << "Account Initialization\n";
+	bool account_status = true;
+	vector<Account*> accounts;  // Vector to store pointers to Account objects
+
+	while (account_status) {
+		string accbankName, accountNumber, ownerName, pw;
+		long initBalance;
+		cout << "Bank Name: ";
+		cin >> accbankName;
+		cout << "Account Number: ";
+		cin >> accountNumber;
+		cout << "Owner Name: ";
+		cin >> ownerName;
+		cout << "Initial Balance: ";
+		cin >> initBalance;
+		cout << "Initialize Password: ";
+		cin >> pw;
+
+		Account* newAccount = new Account(accbankName, accountNumber, ownerName, initBalance, pw);
+		accounts.push_back(newAccount);
+
+		// Link account to the bank
+		bool linked = false;
+		for (Bank* bank : banks) {
+			if (bank->getBankName() == accbankName) {
+				bank->addAccount(newAccount);
+				linked = true;
+				break;
+			}
+		}
+
+		if (!linked) {
+			cout << "No Bank for this account exists\n";
+		}
+
+	
+		cout << "---------------------------------------";
+
+		// More addition
+		char continue_input;
+		cout << "Add another account? (y/n): ";
+		cin >> continue_input;
+		if (continue_input != 'y' && continue_input != 'Y') {
+			account_status = false;
+		}
+	}
+
+	cout << "ATM Initialization\n";
+	bool ATM_status = true;
+	vector<ATM*> ATMs;  // Vector to store pointers to ATM objects
+
+	while (ATM_status) {
+		string atmID, isSingleBank, atmbankName, lingual;
+		bool singleBank, unilingual;
+		long fiftyK, tenK, fiveK, oneK;
+		vector<Bank*> interactableBanks;
+		Bank* ownerBank = nullptr;
+
+		cout << "Bank Name: ";
+		cin >> atmbankName;
+		cout << "ATM serial Number(6-digit serial number): ";
+		cin >> atmID;
+		cout << "Press S for Single Bank ATM, M for Multi Bank ATM: ";
+		cin >> isSingleBank;
+		singleBank = (isSingleBank == "S");
+
+		cout << "Unilingual or Bilingual (Press U for unilingual, B for Bilingual): ";
+		cin >> lingual;
+		unilingual = (lingual == "U");
+
+		cout << "Number of 50000won bill: ";
+		cin >> fiftyK;
+		cout << "Number of 10000won bill: ";
+		cin >> tenK;
+		cout << "Number of 5000won bill: ";
+		cin >> fiveK;
+		cout << "Number of 1000won bill: ";
+		cin >> oneK;
+
+		// Find the owner bank
+		for (Bank* bank : banks) {
+			interactableBanks.push_back(bank);
+			if (bank->getBankName() == atmbankName) {
+				ownerBank = bank;
+			}
+		}
+
+		if (!ownerBank) {
+			cout << atmbankName << " does not exist.\n";
+			continue;
+		}
+
+
+		ATM* newATM = new ATM(atmID, singleBank, atmbankName, ownerBank, unilingual, fiftyK, tenK, fiveK, oneK, interactableBanks);
+		ATMs.push_back(newATM);
+
+	
+		cout << "---------------------------------------";
+
+		// More addition
+		char continue_input;
+		cout << "Add another ATM? (y/n): ";
+		cin >> continue_input;
+		if (continue_input != 'y' && continue_input != 'Y') {
+			ATM_status = false;
+		}
+	}
+	char screenshot;
+	cin >> screenshot;
+	screenShot(screenshot, accounts, ATMs);
+
+	cout << "Select ATM by Serial Number: ";
+	string atmSN;
+	cin >> atmSN;
+	ATM* currATM=nullptr;
+	for (ATM* atm : ATMs) {
+		if (atmSN == atm->getATMID()) {
+			currATM = atm;
+		}
+	}
+	//Start ATM Operation ---------------------------------
+	cout << "Welcome! Please insert Card (Write your card number):\n";
+	string cardnumber;
+	cin >> cardnumber;
+
+	//Session Start
+	Session currSession = Session(currATM, cardnumber);
+	currSession.execute();
+
+	// Clean up dynamically allocated memory at the end
+	for (Bank* bank : banks) delete bank;
+	for (Account* account : accounts) delete account;
+	for (ATM* atm : ATMs) delete atm;
+
+	/*
 	cout << "Bank Initialization\n";
 	bool bank_status = true;
 	vector<Bank> banks;  // Vector to store all bank objects
@@ -859,12 +1016,10 @@ int main() {
 		long long initialfund;
 		cout << "Bank Name(without space): ";
 		cin >> bankName;
-		cout << "Initial Funds of Bank: ";
-		cin >> initialfund;
 
 		// Create new bank object and store it in vector
 		string objectName = "bank" + to_string(bankCounter);
-		banks.push_back(Bank(bankName, initialfund));
+		banks.push_back(Bank(bankName));
 
 		cout << "Created " << objectName << endl;
 		cout << "---------------------------------------";
@@ -934,7 +1089,7 @@ int main() {
 	vector<ATM> ATMs;  // Vector to store all bank objects
 	int ATMCounter = 1; // Counter for naming banks
 	while (ATM_status) {
-		int atmID;
+		string atmID;
 		string isSingleBank;
 		bool singleBank;
 		string atmbankName;
@@ -1011,7 +1166,7 @@ int main() {
 	screenShot(screenshot, accounts, ATMs);
 
 	cout << "Select ATM by Serial Number: ";
-	int atmSN;
+	string atmSN;
 	cin >> atmSN;
 	ATM* currATM=nullptr;
 	for (ATM atm : ATMs) {
@@ -1025,6 +1180,6 @@ int main() {
 	cin >> cardnumber;
 
 	//Session Start
-	Session currSession = Session(currATM, cardnumber);
+	Session currSession = Session(currATM, cardnumber);*/
 	return 0;
 }
