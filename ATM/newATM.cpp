@@ -103,6 +103,7 @@ public:
 	
 	//getter, setter
 	long getAvailableCash();
+	int getATMID() { return atmID_; }
 	string getOwnerBankName() { return primaryBankName_; }
 	Bank* findGetInteractableBank(string bankname);
 	bool isSingleBank() { return singleBank_; } // return true if singlebank(only primary bank card), false if multibank(every bank card)
@@ -225,8 +226,12 @@ vector<Account*> Bank::findAccountsByOwner(string owner) {
 string Bank::findPasswordOfCard(string cardnumber) {
 	for (Card* card : issuedCards_) {
 		if (card->getCardNumber() == cardnumber) return card->getPassword();
-		cout << "NO card found in this Bank DB\n";
+		else {
+			cout << "NO card found in this Bank DB\n";
+			return "None";
+		}
 	}
+	return "None";
 }
 void Bank::updateAccount(string transactiontype, string accountNumber, long amount) {
 	Account* tempAcc = findAccountByNumber(accountNumber);
@@ -241,6 +246,9 @@ Account::Account(string bankName, string accountNumber, string ownerName, long i
 	accountNumber_ = accountNumber;
 	ownerName_ = ownerName;
 	balance_ = initBalance;
+
+	cout << "Account Constructed (Account Bank name: " << accountBankName_ << ", Account Number: " << accountNumber_ <<", Owner: "<<ownerName_<<", Balance : "<<balance_<<")\n";
+	
 }
 void Account::accountBalanceUpdate(string transactionType, long amount) {
 	if (transactionType == "Withdrawl") {
@@ -323,6 +331,7 @@ Bank* ATM::findGetInteractableBank(string bankname) {
 		if (bank->getBankName() == bankname) return bank;
 	}
 	cout << bankname << " is not existing bank\n";
+	return nullptr;
 }
 bool ATM::updateAvailableCash(int fiftyK, int tenK, int fiveK, int oneK) { //input must include +,-
 	//check if bills are sufficient
@@ -516,6 +525,7 @@ bool Deposit::validateDeposit() {
 	}
 	else { //checks
 		//total amount of checks should be under 30
+		return false;
 	}	
 }
 bool Deposit::execute() {
@@ -532,7 +542,7 @@ bool Deposit::execute() {
 		}
 		else { //deposit to non-primary bank
 			atm_->updateAvailableCash(depositedCash["50000won"], depositedCash["10000won"], depositedCash["5000won"], depositedCash["1000won"]);
-			atm_->findGetInteractableBank(receiveBankName_)->
+			atm_->findGetInteractableBank(receiveBankName_)->updateAccount(transactionType_, receiveAccount_, amount_);
 		}
 	
 		return true;
@@ -609,7 +619,7 @@ bool Transfer:: execute() {
 		// update sender balance
 		atm_->updateAccountBalance(transactionType_ + "Send", session_->getCurrentSessionCardAccountNumber(), amount_);
 		// update receiveaccount balance
-		atm_->updateAccountBalance(transactionType_ + "Receive", atm_->, amount_);
+		atm_->findGetInteractableBank(receiveBank_)->updateAccount(transactionType_+"Receive", receiveAccount_, amount_);
 		return true;
 	}
 }
@@ -676,8 +686,10 @@ bool Session::authenticate(string pw) {
 			wrongPasswordAttempts_++;
 			return false;
 		}
-	endSession();
+	
 	}
+	endSession();
+	return false;
 }
 void Session::addTransaction(Transaction* currTransaction) {
 	transactions_.push_back(currTransaction);
@@ -699,7 +711,14 @@ string Session::getCurrentSessionCardAccountNumber() {
 	return insertedCard_->getAccountNumber();
 }
 //---------------------------------------------------------------------------
+void screenShot(char slash, vector<Account> accounts, vector<ATM>atms) {
+	if (slash == 47) {
+		for (ATM atm : atms) {
+			cout<<"ATM[SN: "<<atm.getATMID()<<"] remaining cash: {KRW 50000: "<<atm.getAvailableCash()
+		}
+	}
 
+}
 int main() {
 	cout << "Bank Initialization\n";
 	bool bank_status = true;
@@ -709,7 +728,7 @@ int main() {
 	while (bank_status) {
 		string bankName;
 		long long initialfund;
-		cout << "Bank Name: ";
+		cout << "Bank Name(without space): ";
 		cin >> bankName;
 		cout << "Initial Funds of Bank: ";
 		cin >> initialfund;
@@ -730,6 +749,10 @@ int main() {
 			bank_status = false;
 		}
 	}
+	for (Bank bank : banks) {
+		cout << bank.getBankName() << " ";
+	}
+	cout << endl;
 
 	cout << "Account Initialization\n";
 	bool account_status = true;
@@ -754,11 +777,11 @@ int main() {
 		for (Bank bank : banks) {
 			if (bank.getBankName() == accbankName) {
 				accounts.push_back(Account(accbankName, accountNumber, ownerName, initBalance));
-				bank.addAccount(&accounts[accountCounter-1]);
+				bank.addAccount(&accounts[accountCounter - 1]);
 			}
-			else {
-				cout << "No Bank for this account exists\n";
-			}
+		}
+		if (accounts[accountCounter - 1].getAccountBankName() == "") {
+			cout << "No Bank for this account exists\n";
 		}
 		
 		cout << "Created " << objectName << endl;
@@ -790,6 +813,7 @@ int main() {
 		int fiveK;
 		int oneK;
 		vector<Bank*> interactableBanks;
+		Bank* ownerbank;
 
 		cout << "Bank Name: ";
 		cin >> atmbankName;
@@ -799,16 +823,12 @@ int main() {
 		cin >> isSingleBank;
 		if (isSingleBank == "S") {
 			singleBank = true;
-			string tempBank;
-			for (int i = 1; i <= bankCounter; i++) {
-				cout << "Write Name of Existing Bank One by One";
-				cin >> tempBank;
-				for (Bank bank : banks) {
-					if (bank.getBankName() == tempBank) interactableBanks.push_back(&bank);
-				}
-			}
+			//for (Bank bank : banks) interactableBanks.push_back(&bank);
 		}
-		else if (isSingleBank == "M") singleBank = false;
+		else if (isSingleBank == "M") {
+			singleBank = false;
+			//for (Bank bank : banks) interactableBanks.push_back(&bank);
+		}
 		else {
 			cout << "Wrong Selection\n";
 			continue;
@@ -831,16 +851,16 @@ int main() {
 		cin >> oneK;
 
 		string objectName = "ATM" + to_string(ATMCounter);
-
+		bool success = false;
 		for (Bank bank : banks) {
 			if (bank.getBankName() == atmbankName) {
 				Bank* ownerBank = &bank;
+				for (Bank bank : banks) interactableBanks.push_back(&bank);
 				ATMs.push_back(ATM(atmID, singleBank, atmbankName, ownerBank, unilingual, fiftyK, tenK, fiveK, oneK, interactableBanks));
-			}
-			else {
-				cout << "No Bank for this ATM exists\n";
+				success = true;
 			}
 		}
+		if (!success) cout << atmbankName << " does not exist.\n";
 
 		cout << "---------------------------------------";
 		ATMCounter++;
@@ -853,5 +873,6 @@ int main() {
 			account_status = false;
 		}
 	}
+
 	return 0;
 }
