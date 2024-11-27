@@ -105,6 +105,7 @@ public:
 	string getATMID() { return atmID_; }
 	string getOwnerBankName() { return primaryBankName_; }
 	Bank* getCardBank(string cardNumber);
+	vector<string> gettransactionHistoryOfATM() { return transactionHistoryOfATM_; }
 	Bank* findGetInteractableBank(string bankname);
 	bool isSingleBank() { return singleBank_; } // return true if singlebank(only primary bank card), false if multibank(every bank card)
 	//update availableCash when deposit, withdrawl
@@ -115,6 +116,7 @@ public:
 	string getCardPasswordFromBank(string cardNumber);
 	void addTransactionHistoryOfATM(string history);
 	bool updateAccountBalance(string transactionType, string accountnumber,  long amount);
+
 };
 class Transaction {
 protected:
@@ -195,6 +197,7 @@ public:
 	string getCurrCardBankName() { return currCardBankName_; }
 	void addTransactionOfSession(string history);
 	void endSession(); //whenever user wants or no cash available
+	void adMin();
 
 	string getCurrentSessionCardNumber() { return currCardNumber_; }
 	string getCurrAccountNumber() { return currCardAccountNumber_; }
@@ -379,7 +382,7 @@ void ATM::depositChecks(string check, long amount) {
 }
 bool ATM::isVaildCard(string cardBank) {
 	if (isSingleBank()) {
-		if (primaryBankName_ != cardBank) {
+		if (primaryBankName_ == cardBank) {
 			//cout << "Invalid Card\n";
 			//cout << "This is a Single Bank ATM. Only card issued by " << primaryBankName_ << "is allowed.\n";
 			return true;
@@ -444,26 +447,26 @@ map<string,long> Withdrawl::distributeDenom(long amount) {
 
 	long temp = amount;
 	if (temp > 50000) {
-		withdrawlDenominations["50000 won"] = temp / 50000;
-		temp -= withdrawlDenominations["50000 won"] * 50000;
+		withdrawlDenominations["50000won"] = temp / 50000;
+		temp -= withdrawlDenominations["50000won"] * 50000;
 	}
 	if (temp > 10000) {
-		withdrawlDenominations["10000 won"] = temp / 10000;
-		temp -= withdrawlDenominations["10000 won"] * 10000;
+		withdrawlDenominations["10000won"] = temp / 10000;
+		temp -= withdrawlDenominations["10000won"] * 10000;
 	}
 	if (temp > 5000) {
-		withdrawlDenominations["5000 won"] = temp / 5000;
-		temp -= withdrawlDenominations["5000 won"] * 5000;
+		withdrawlDenominations["5000won"] = temp / 5000;
+		temp -= withdrawlDenominations["5000won"] * 5000;
 	}
 	if (temp > 1000) {
-		withdrawlDenominations["1000 won"] = temp / 1000;
+		withdrawlDenominations["1000won"] = temp / 1000;
 		if (temp % 1000 > 0) cout << "No coins serving";
 	}
 
 	return withdrawlDenominations;
 }
 void Withdrawl::execute() {
-	cout << "<Deposit>\n";
+	cout << "<Withdrawl>\n";
 	cout << "Please Enter the desired amount of cash you want to withdrawl. AMOUNT(won): ";
 	cin >> amount_;
 	calculateFee();
@@ -472,7 +475,7 @@ void Withdrawl::execute() {
 			atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << " won.\n";
 		return ;
 	}
-	if (distributeDenom(amount_)["50000"] > atm_->getAvailableCash()["50000"]) {
+	if (distributeDenom(amount_)["50000won"] > atm_->getAvailableCash()["50000won"]) {
 		cout << "Insufficient 50000won bills\n";
 		return ;
 	}
@@ -480,17 +483,18 @@ void Withdrawl::execute() {
 		cout << "Insufficient 10000won bills\n";
 		return ;
 	}
-	if (distributeDenom(amount_)["5000"] > atm_->getAvailableCash()["5000"]) {
+	if (distributeDenom(amount_)["5000won"] > atm_->getAvailableCash()["5000won"]) {
 		cout << "Insufficient 5000won bills\n";
 		return ;
 	}
-	if (distributeDenom(amount_)["1000"] > atm_->getAvailableCash()["1000"]) {
+	if (distributeDenom(amount_)["1000won"] > atm_->getAvailableCash()["1000won"]) {
 		cout << "Insufficient 1000won bills\n";
 		return ;
 	}
 	atm_->getCardBank(session_->getCurrCardNumber())->updateAccount(transactionType_, session_->getCurrAccountNumber(), amount_);
+	cout << " \n";
 	cout << "Get the Cash. 50000won bill: " << distributeDenom(amount_)["50000"] << ", 10000won bill: " << distributeDenom(amount_)["10000"]
-		<< "5000won bill : " << distributeDenom(amount_)["5000"] << "1000won bill : " << distributeDenom(amount_)["1000"] << endl;
+		<< ", 5000won bill : " << distributeDenom(amount_)["5000"] << ", 1000won bill : " << distributeDenom(amount_)["1000"] << endl;
 	describeAndSave();
 
 }	
@@ -636,6 +640,7 @@ void Deposit::describeAndSave() {
 Transfer::Transfer(ATM* atm, Session* session):Transaction(atm, session) {
 	transactionType_ = "Transfer";
 	fee_ = 0;
+	cashToAccount_ = 0;
 }
 bool Transfer::validateReceiverAccounts() {
 	if (!atm_->findGetInteractableBank(receiveBankName_)) {
@@ -656,6 +661,7 @@ bool Transfer::validateReceiverAccounts() {
 void Transfer:: execute() {
 	cout << "<Transfer>\n";
 	int pick = 0;
+	cout << "---------1----------\n";
 	while (pick != 1 && pick != 2) {
 		cout << "Enter 1 for Cash-to-Account Transfer. Enter 2 for Account-to-Account Transfer.: ";
 		cin >> pick;
@@ -668,42 +674,46 @@ void Transfer:: execute() {
 	cout << "Enter Receiver's Account Number: ";
 	cin >> receiveAccountNumber_;
 	bool success = validateReceiverAccounts();
-	if (success) {
-		calculateFee();
-		if (cashToAccount_) {
-			cout << "Place the cash to transfer into Slot\n";
-			cout << "KRW 50000 bills: ";
-			long fiftyK;
-			cin >> fiftyK;
-			cout << "KRW 10000 bills: ";
-			long tenK;
-			cin >> tenK;
-			cout << "KRW 5000 bills: ";
-			long fiveK;
-			cin >> fiveK;
-			cout << "KRW 1000 bills: ";
-			long oneK;
-			cin >> oneK;
-
-			amount_ = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000 - fee_;
-			atm_->updateAvailableCash(fiftyK, tenK, fiveK, oneK);
-			atm_->findGetInteractableBank(receiveBankName_)->updateAccount(transactionType_ + "Receive", receiveAccountNumber_, amount_);
-			return ;
-		}
-		else {
-			cout << "Enter Amount to Transfer: ";
-			cin >> amount_;
-
-			if (amount_ > atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance()) {
-				cout << "Insufficient Balance.\n";
-				return ;
-			}
-			atm_->findGetInteractableBank(receiveBankName_)->updateAccount(transactionType_ + "Receive", receiveAccountNumber_, amount_);
-			atm_->findGetInteractableBank(session_->getCurrCardBankName())->updateAccount(transactionType_ + "Send", session_->getCurrAccountNumber(), amount_);
-			return ;
-		}
+	if (!success) {
+		return;
 	}
-	describeAndSave();
+	calculateFee();
+	if (cashToAccount_) {
+		cout << "Place the cash to transfer into Slot\n";
+		cout << "KRW 50000 bills: ";
+		long fiftyK;
+		cin >> fiftyK;
+		cout << "KRW 10000 bills: ";
+		long tenK;
+		cin >> tenK;
+		cout << "KRW 5000 bills: ";
+		long fiveK;
+		cin >> fiveK;
+		cout << "KRW 1000 bills: ";
+		long oneK;
+		cin >> oneK;
+
+		amount_ = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000 - fee_;
+		atm_->updateAvailableCash(fiftyK, tenK, fiveK, oneK);
+		atm_->findGetInteractableBank(receiveBankName_)->updateAccount(transactionType_ + "Receive", receiveAccountNumber_, amount_);
+		describeAndSave();
+		return;
+	}
+	else {
+		cout << "Enter Amount to Transfer: ";
+		cin >> amount_;
+
+		if (amount_ > atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance()) {
+			cout << "Insufficient Balance.\n";
+			return;
+		}
+		atm_->findGetInteractableBank(receiveBankName_)->updateAccount(transactionType_ + "Receive", receiveAccountNumber_, amount_);
+		atm_->findGetInteractableBank(session_->getCurrCardBankName())->updateAccount(transactionType_ + "Send", session_->getCurrAccountNumber(), amount_);
+		describeAndSave();
+		return;
+	}
+	
+	
 }
 void Transfer::calculateFee() {
 	if (cashToAccount_) {
@@ -712,15 +722,15 @@ void Transfer::calculateFee() {
 	}
 	else{
 		if (atm_->getOwnerBankName()==receiveBankName_ && atm_->getOwnerBankName() == session_->getCurrCardBankName()) {
-			cout << "When you insert the cash to transfer into slot, you must include 2000won for fee.\n";
+			cout << "2000won will be paid from your account.\n";
 			fee_ = 2000;
 		}
 		else if (atm_->getOwnerBankName() != receiveBankName_ && atm_->getOwnerBankName() != session_->getCurrCardBankName()) {
-			cout << "When you insert the cash to transfer into slot, you must include 4000won for fee.\n";
+			cout << "4000won will be paid from your account.\n";
 			fee_ = 4000;
 		}
 		else {
-			cout << "When you insert the cash to transfer into slot, you must include 3000won for fee.\n";
+			cout << "3000won will be paid from your account.\n";
 			fee_ = 3000;
 		}
 	}
@@ -757,8 +767,8 @@ Session::Session(ATM* currentATM, string cardNumber) {
 }
 void Session::execute() {
 	// 1. Is card valid to this ATM type
-	if (!atm_->isVaildCard(currCardNumber_)) {
-		cout << "INVALID CARD> This is a Single Bank ATM. Only card issued by " << atm_->getOwnerBankName() << "is allowed.\n";
+	if (!atm_->isVaildCard(currCardBankName_)) {
+		cout << "INVALID CARD> This is a Single Bank ATM. Only card issued by " << atm_->getOwnerBankName() << " is allowed.\n";
 		cout << "Return Card: " << currCardNumber_ << endl;
 		endSession();
 	}
@@ -821,6 +831,16 @@ void Session::endSession() {
 	delete deposit;
 	delete transfer;
 	cout << "Current Session End\n";
+}
+void Session::adMin() {
+	cout << "Menu for Admin\n";
+	cout << "1. Transaction History\n";
+	cout << "->";
+	int menupick;
+	cin >> menupick;
+	if (menupick == 1) {
+		for (string history : atm_->gettransactionHistoryOfATM()) cout << history << "\n";
+	}
 }
 //---------------------------------------------------------------------------
 void screenShot(char slash, vector<Account*> accounts, vector<ATM*>atms) {
@@ -999,6 +1019,7 @@ int main() {
 
 	//Session Start
 	Session currSession = Session(currATM, cardnumber);
+	cout << "Bank of Card: " << currSession.getCurrCardBankName() << endl;
 	currSession.execute();
 
 	// Clean up dynamically allocated memory at the end
