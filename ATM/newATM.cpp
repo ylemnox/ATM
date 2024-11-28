@@ -104,6 +104,7 @@ public:
 	vector<string> gettransactionHistoryOfATM() { return transactionHistoryOfATM_; }
 	Bank* findGetInteractableBank(string bankname);
 	bool isSingleBank() { return singleBank_; } // return true if singlebank(only primary bank card), false if multibank(every bank card)
+	bool isEnglish() { return isEnglish_; }
 	//update availableCash when deposit, withdrawl
 	bool updateAvailableCash(long fiftyK, long tenK, long fiveK, long oneK); //return update o,x
 	void depositChecks(string check, long amount);
@@ -212,11 +213,12 @@ Bank::Bank(string bankName, string korBankName) {
 void Bank::addAccount(Account* account) {
 	accounts_.push_back(account);
 }
-Account* Bank::findAccountByNumber(string accountNumber) {
+Account* Bank::findAccountByNumber(string accountNumber)
+ {
 	for (Account* acc : accounts_) {
 		if (acc->getAccountNumber() == accountNumber) return acc;
 	}
-	cout << accountNumber << " account is not found in " << bankName_ << " DB.\n";
+	//cout << accountNumber << " account is not found in " << bankName_ << " DB.\n";
 	return nullptr;
 }
 vector<Account*> Bank::findAccountsByOwner(string owner) {
@@ -227,7 +229,7 @@ vector<Account*> Bank::findAccountsByOwner(string owner) {
 
 	if (!temp.empty()) return temp;
 	else {
-		cout << owner << "'s account is not found" << endl;
+		//cout << owner << "'s account is not found" << endl;
 		return temp;
 	}
 }
@@ -340,34 +342,40 @@ ATM::ATM(string atmID, bool singleBank, string bankName, Bank* ownerBank, bool u
 	availableCash_.insert(pair<string, long>("5000won", fiveK));
 	availableCash_.insert(pair<string, long>("1000won", oneK));
 	interactableBanks_ = interactableBanks;
-	cout << "ATM Constructed (ATM ID: " << atmID_ << ", Unilingual: " << unilingual_ << ")\n";
+	if (unilingual_) cout << "ATM Constructed (ATM SN: " << atmID_ << ", Unilingual" << ")\n";
+	else cout << "ATM Constructed (ATM SN: " << atmID_ << ",Bilingual" << ")\n";
 }
-std::map<std::string, long> ATM::getAvailableCash() {
+map<std::string, long> ATM::getAvailableCash() {
 	return availableCash_;
 }
 Bank* ATM::findGetInteractableBank(string bankname) {
 	for (Bank* bank : interactableBanks_) {
 		if (bank->getBankName() == bankname) return bank;
 	}
-	cout << bankname << " is not existing bank\n";
+	if (isEnglish_) cout << bankname << " is not existing bank\n";
+	else cout << bankname << "은 존재하지 않습니다.\n";
 	return nullptr;
 }
 bool ATM::updateAvailableCash(long fiftyK, long tenK, long fiveK, long oneK) { //input must include +,-
 	//check if bills are sufficient
 	if (availableCash_["50000won"] + fiftyK < 0) {
-		cout << "Insufficient 50000won bills\n";
+		if (isEnglish_) cout << "Insufficient 50000won bills\n";
+	    else cout << "오만원권 부족\n";
 		return false;
 	}
 	if (availableCash_["10000won"] + tenK < 0) {
-		cout << "Insufficient 10000won bills\n";
+		if (isEnglish_) cout << "Insufficient 10000won bills\n";
+		else cout << "만원권 부족\n";
 		return false;
 	}
 	if (availableCash_["5000won"] + fiveK < 0) {
-		cout << "Insufficient 5000won bills\n";
+		if (isEnglish_) cout << "Insufficient 5000won bills\n";
+		else cout << "오천원권 부족\n";
 		return false;
 	}
 	if (availableCash_["1000won"] + oneK < 0) {
-		cout << "Insufficient 1000won bills\n";
+		if (isEnglish_) cout << "Insufficient 1000won bills\n";
+		else cout << "천원권 부족\n";
 		return false;
 	}
 	//update available cash
@@ -400,13 +408,13 @@ Bank* ATM::getCardBank(string cardNumber) {
 		pAcc = pBank->findAccountByCardNumber(cardNumber);
 		if (pAcc) return pBank;
 	}
-	cout << "This Card does not below to any Bank\n";
+	if (isEnglish_) cout << "This Card does not below to any Bank\n";
+	else cout << "이 카드는 어느 은행의 카드도 아닙니다.\n";
 	return nullptr;
 }
 void ATM::addTransactionHistoryOfATM(string history) {
 	transactionHistoryOfATM_.push_back(history);
-}
-	
+}	
 string ATM::getCardPasswordFromBank(string cardNumber) {
 	return getCardBank(cardNumber)->findPasswordOfCard(cardNumber);
 }
@@ -447,70 +455,99 @@ map<string,long> Withdrawl::distributeDenom(long amount) {
 	return withdrawlDenominations_;
 }
 void Withdrawl::execute() {
-	cout << "<Withdrawl>\n";
+	if (atm_->isEnglish()) cout << "<Withdrawl>\n";
+	else cout << "<인출>\n";
+
 	if (!calculateFee()) return;
-	cout << "Please Enter the desired amount of cash you want to withdrawl (No coins are dispensed). AMOUNT(won): ";
+
+	if (atm_->isEnglish()) cout << "Please Enter the desired amount of cash you want to withdrawl (No coins are dispensed). AMOUNT(won): ";
+	else cout << "인출하고자 하는 현금의 금액을 입력하십시오. (동전 인출 불가) 금액(원): ";
+
 	cin >> amount_;
 	if (amount_ < 1000 || amount_ % 1000 != 0) {
-		cout << "Wrong Input. Only amount that can be dispensed by 1000, 5000, 10000, 50000won bills is allowed.\n";
+		if (atm_->isEnglish()) cout << "Wrong Input. Only amount that can be dispensed by 1000, 5000, 10000, 50000won bills is allowed.\n";
+		else cout << "잘못된 금액 입력. 천원권, 오천원권, 만원권, 오만원권으로 수령할 수 있는 금액만 허용됩니다.\n";
 		session_->IsNotActive();
 		return;
 	}
 	if (amount_ + fee_ > atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance()) {
-		cout << "Insufficient Account Balance. Current Balance: " <<
-			atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << " won.\n";
+		if (atm_->isEnglish()) {
+			cout << "Insufficient Account Balance. Current Balance: " <<
+				atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << " won.\n";
+		}
+		else cout << "계좌 잔액 부족. 잔액: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << " 원\n";
 		session_->IsNotActive();
 		return ;
 	}
 	if (distributeDenom(amount_)["50000won"] > atm_->getAvailableCash()["50000won"]) {
-		cout << "Insufficient 50000won bills\n";
+		if (atm_->isEnglish()) cout << "Insufficient 50000won bills\n";
+		else cout << "오만원권 부족\n";
 		session_->IsNotActive();
 		return ;
 	}
 	if (distributeDenom(amount_)["10000"] > atm_->getAvailableCash()["10000"]) {
-		cout << "Insufficient 10000won bills\n";
+		if (atm_->isEnglish())cout << "Insufficient 10000won bills\n";
+		else "만원권 부족\n";
 		session_->IsNotActive();
 		return ;
 	}
 	if (distributeDenom(amount_)["5000won"] > atm_->getAvailableCash()["5000won"]) {
-		cout << "Insufficient 5000won bills\n";
+		if (atm_->isEnglish()) cout << "Insufficient 5000won bills\n";
+		else cout << "오천원권 부족\n";
 		session_->IsNotActive();
 		return ;
 	}
 	if (distributeDenom(amount_)["1000won"] > atm_->getAvailableCash()["1000won"]) {
-		cout << "Insufficient 1000won bills\n";
+		if (atm_->isEnglish()) cout << "Insufficient 1000won bills\n";
+		else cout << "천원권 부족\n";
 		session_->IsNotActive();
 		return ;
 	}
 	atm_->getCardBank(session_->getCurrCardNumber())->updateAccount(transactionType_, session_->getCurrAccountNumber(), amount_+fee_);
 	atm_->updateAvailableCash(-distributeDenom(amount_)["50000won"], -distributeDenom(amount_)["10000won"], -distributeDenom(amount_)["5000won"], -distributeDenom(amount_)["1000won"]);
 	cout << " \n";
-	cout << "Get the Cash. 50000won bill: " << distributeDenom(amount_)["50000won"] << ", 10000won bill: " << distributeDenom(amount_)["10000won"]
-		<< ", 5000won bill : " << distributeDenom(amount_)["5000won"] << ", 1000won bill : " << distributeDenom(amount_)["1000won"] << endl;
+	if (atm_->isEnglish()) {
+		cout << "Get the Cash. 50000won bill: " << distributeDenom(amount_)["50000won"] << ", 10000won bill: " << distributeDenom(amount_)["10000won"]
+			<< ", 5000won bill : " << distributeDenom(amount_)["5000won"] << ", 1000won bill : " << distributeDenom(amount_)["1000won"] << endl;
+	}
+	else {
+		cout << "현금을 수령하시오. 오만원권: " << distributeDenom(amount_)["50000won"] << ", 만원권: " << distributeDenom(amount_)["10000won"]
+			<< ", 오천원권: " << distributeDenom(amount_)["5000won"] << ", 천원권: " << distributeDenom(amount_)["1000won"] << endl;
+	}
+	
 	describeAndSave();
 	
-
-	cout << "\nWithdrawl " << amount_ << " won from (" << session_->getCurrCardBankName() << " , NO: " << session_->getCurrAccountNumber() << ")\n";
-	cout << "Balance: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+	if (atm_->isEnglish()) {
+		cout << "\nWithdrawl " << amount_ << " won from (" << session_->getCurrCardBankName() << " , NO: " << session_->getCurrAccountNumber() << ")\n";
+		cout << "Balance: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+	}
+	else {
+		cout << "(" << session_->getCurrCardBankName() << ", 계좌번호: " << session_->getCurrAccountNumber() << ")에서 "<< amount_ << "원 인출됨. \n";
+		cout << "잔액: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+	}
 	amount_ = 0;
 }	
 bool Withdrawl::calculateFee() { //update fee
 	if (atm_->getOwnerBankName() == session_->getCurrCardBankName()) {
-		cout << "1000won will be paid from your account when withdrawl is completed.\n";
+		if (atm_->isEnglish()) cout << "1000won fee will be paid from your account when withdrawl is completed.\n";
+		else cout << "인출이 완료되면 수수료 1000원이 고객님 계좌에서 출금됩니다.\n";
 		fee_ = 1000;
 	}
 	else {
-		cout << "2000won will be paid from your account when withdrawl is completed.\n";
+		if (atm_->isEnglish()) cout << "2000won fee will be paid from your account when withdrawl is completed.\n";
+		else cout << "인출이 완료되면 수수료 2000원이 고객님 계좌에서 출금됩니다.\n";
 		fee_ = 2000;
 	}
 	return true;
 }
 void Withdrawl::describeAndSave() {
 	string history = "ATM SN: " + atm_->getATMID() + " |TransactionID: " + to_string(transID_) + " |Card Number : " + session_->getCurrCardNumber() + " |Account Number : " + session_->getCurrAccountNumber() + " |" + transactionType_ + " |Amount : " + to_string(amount_) + " |Fee: " + to_string(fee_);
+	string korHistory = "ATM 고유번호 : " + atm_->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |계좌번호 : " + session_->getCurrAccountNumber() + " |" + "인출" + " |금액 : " + to_string(amount_) + " |수수료: " + to_string(fee_);
 	atm_->addTransactionHistoryOfATM(history);
-	session_->addTransactionOfSession(history);
+	if (atm_->isEnglish()) session_->addTransactionOfSession(history);
+	else session_->addTransactionOfSession(korHistory);
 	atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->addTransactionHistoryOfAccount(history);
-	cout << history << endl;
+	//cout << history << endl;
 	cout << " \n";
 }
 //---------------------------------------------------------------------------
@@ -531,11 +568,13 @@ bool Deposit::validateDeposit() {
 	if (isCash_) { //cash
 		long totalsheet_= depositedCash["50000won"] + depositedCash["10000won"] + depositedCash["5000won"] + depositedCash["1000won"];
 		if (totalsheet_ > numOfCashLimit_) {
-			cout << "Total amount of cash should be under 50" << endl;
+			if (atm_->isEnglish()) cout << "Total amount of cash should be less or equal to 50" << endl;
+			else cout << "전체 현금은 50장 이하여야 합니다." << endl;
 			return false;
 		}
 		if (totalsheet_ == 0) {
-			cout << "No cash inserted.\n";
+			if (atm_->isEnglish()) cout << "No cash inserted.\n";
+			else cout << "현금이 주입되지 않았습니다.\n";
 			return false;
 		}
 		else return true;
@@ -543,14 +582,18 @@ bool Deposit::validateDeposit() {
 	return false;
 }
 void Deposit::execute() {
-	cout << "<Deposit>\n";
+	if (atm_->isEnglish()) cout << "<Deposit>\n";
+	else cout << "<입금>\n";
 	int pick = 0;
 	while (pick != 1 && pick != 2) {
-		cout << "Enter 1 for Cash Deposit. Enter 2 for Check Deposit.: ";
+		if (atm_->isEnglish()) cout << "Enter 1 for Cash Deposit. Enter 2 for Check Deposit.: ";
+		else cout << "현금 입금은 1, 수표 입금은 2를 누르시오.: ";
 		cin >> pick;
 		if (pick == 1) isCash_ = true;
 		else if (pick == 2) isCash_ = false;
-		else cout << "Wrong Input. Enter 1 or 2.\n";
+		else {
+			if (atm_->isEnglish()) cout << "Wrong Input. Enter 1 or 2.\n";
+			else cout << "잘못된 입력. 1과 2 중 입력하시오.\n";
 	}
 	if (isCash_) { //cash deposit
 		long fiftyK;
@@ -559,21 +602,26 @@ void Deposit::execute() {
 		long oneK;
 		bool success = false;
 
-		cout << "Place the cash into Slot\n";
+		if (atm_->isEnglish()) cout << "Place the cash into Slot.\n";
+		else cout << "현금을 투입구에 넣어주십시오.\n";
 
-		cout << "KRW 50000 bills: ";
+		if (atm_->isEnglish()) cout << "KRW 50000 bills: ";
+		else cout << "오만원권: ";
 		cin >> fiftyK;
 		depositedCash["50000won"] = fiftyK;
 
-		cout << "KRW 10000 bills: ";
+		if (atm_->isEnglish()) cout << "KRW 10000 bills: ";
+		else cout << "만원권: ";
 		cin >> tenK;
 		depositedCash["10000won"] = tenK;
 
-		cout << "KRW 5000 bills: ";
+		if (atm_->isEnglish()) cout << "KRW 5000 bills: ";
+		else cout << "오천원권: ";
 		cin >> fiveK;
 		depositedCash["5000won"] = fiveK;
 
-		cout << "KRW 1000 bills: ";
+		if (atm_->isEnglish()) cout << "KRW 1000 bills: ";
+		else cout << "천원권: ";
 		cin >> oneK;
 		depositedCash["1000won"] = oneK;
 
@@ -591,30 +639,41 @@ void Deposit::execute() {
 			session_->IsNotActive();
 			return;
 		}
-	
-		cout << "\nDeposit " << amount_ << " won to (" << session_->getCurrCardBankName() << " , NO: " << session_->getCurrAccountNumber() << ")\n";
-		cout << "Balance: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+		
+		if (atm_->isEnglish()) {
+			cout << "\nDeposit " << amount_ << " won to (" << session_->getCurrCardBankName() << " , NO: " << session_->getCurrAccountNumber() << ")\n";
+			cout << "Balance: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+		}
+		else{
+			cout << "(" << session_->getCurrCardBankName() << ", 계좌번호: " << session_->getCurrAccountNumber() << ")으로 " << amount_ << "원 입금됨. \n";
+			cout << "잔액: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+		}
 	}
+
 	else { //check deposit
-		cout << "Place the checks into Slot(Limit: 30 sheets)\n";
+		if (atm_->isEnglish()) cout << "Place the checks into Slot(Limit: 30 sheets)\n";
+		else cout << "수표를 투입구에 넣어주십시오.(상한: 30장)\n";
 		long totalsheet=0;
 		while (true) {
-			cout << "Amount of this check(must be greater or equal to KRW 10000) (Enter 'Stop' for Termination of Input): ";
+			if (atm_->isEnglish()) cout << "Amount of this check(must be greater or equal to KRW 10000) (Enter 'Stop' for Termination of Input): ";
+			else cout << "수표 금액(10만원 이상의 금액) (수표 입금을 완료하였으면 '종료'를 입력하십시오.): ";
 			string check;
 			cin >> check;
 			if (check == "Stop") break;
 			if (stol(check) < 10000) {
-				cout << "Wrong Check\n";
+				if (atm_->isEnglish()) cout << "Wrong Check\n";
+				else cout << "잘못된 수표 금액\n";
 				session_->IsNotActive();
 				return;
 			}
-			cout << "How many sheets of this check: ";
+			if (atm_->isEnglish()) cout << "How many sheets of this check: ";
+			else cout << "해당 금액의 수표 장수: ";
 			long sheet;
 			cin >> sheet;
 			totalsheet += sheet;
-			if (totalsheet == 30) cout << "No more checks input is allowed\n";
 			if (totalsheet > 30) {
-				cout << "Exceeded sheet limit(30 sheets). \n" ;
+				if (atm_->isEnglish()) cout << "Exceeded sheet limit(30 sheets). \n";
+				else cout << "수표 투입 상한 장수 초과(30장).\n";
 				session_->IsNotActive();
 				return;
 			}
@@ -626,8 +685,14 @@ void Deposit::execute() {
 			session_->IsNotActive();
 			return;
 		}
-		cout << "Deposit " << amount_ << " won to (" << session_->getCurrCardBankName() << " , NO: " << session_->getCurrAccountNumber() << ")\n";
-		cout << "Balance: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+		if (atm_->isEnglish()) {
+			cout << "\nDeposit " << amount_ << " won to (" << session_->getCurrCardBankName() << " , NO: " << session_->getCurrAccountNumber() << ")\n";
+			cout << "Balance: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+		}
+		else {
+			cout << "(" << session_->getCurrCardBankName() << ", 계좌번호: " << session_->getCurrAccountNumber() << ")으로 " << amount_ << "원 입금됨. \n";
+			cout << "잔액: " << atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->getBalance() << endl;
+		}
 		atm_->getCardBank(session_->getCurrCardNumber())->updateAccount(transactionType_, session_->getCurrAccountNumber(), amount_);
 	}
 	describeAndSave();
@@ -636,22 +701,28 @@ void Deposit::execute() {
 bool Deposit::calculateFee() {
 	fee_ = 0;
 	if (atm_->getOwnerBankName() == session_->getCurrCardBankName()) {
-		cout << "Pay 1000won for deposit fee into slot. SLOT: [1000won bills]: ";
+		if (atm_->isEnglish()) cout << "Pay 1000won for deposit fee into slot. SLOT: [1000won bills]: ";
+		else cout << "입금 수수료 1000원을 투입구에 넣어주십시오. [천원권]: ";
+
 		cin >> fee_;
 		fee_ *= 1000;
 		if (fee_ != 1000) {
-			cout << "Wrong amount is paid for fee. Cash Return: [1000won bills]: " << fee_ / 1000 << endl;
+			if (atm_->isEnglish()) cout << "Wrong amount is paid for fee. Cash Return: [1000won bills]: " << fee_ / 1000 << endl;
+			else cout<<"잘못된 수수료 금액이 투입되었습니다. 현금 반환: [천원권]: " << fee_ / 1000 << endl;
 			return false;
 		}
 		atm_->updateAvailableCash(0, 0, 0, 1);
 		return true;
 	}
 	else {
-		cout << "First, Pay 2000won for deposit fee into slot.SLOT: [1000won bills]: ";
+		if (atm_->isEnglish()) cout << "First, Pay 2000won for deposit fee into slot.SLOT: [1000won bills]: ";
+		else cout << "입금 수수료 2000원을 투입구에 넣어주십시오. [천원권]: ";
 		cin >> fee_;
 		fee_ *= 1000;
 		if (fee_ != 2000) {
-			cout << "Wrong amount is paid for fee. Cash Return: [1000won bills]: " << fee_ / 1000 << endl;
+			if (atm_->isEnglish()) cout << "Wrong amount is paid for fee. Cash Return: [1000won bills]: " << fee_ / 1000 << endl;
+			else cout << "잘못된 수수료 금액이 투입되었습니다. 현금 반환: [천원권]: " << fee_ / 1000 << endl;
+
 			return false;
 		}
 		atm_->updateAvailableCash(0, 0, 0, 2);
@@ -661,17 +732,21 @@ bool Deposit::calculateFee() {
 void Deposit::describeAndSave() {
 	if (isCash_) {
 		string history = "ATM SN: " + atm_->getATMID() + " |TransactionID: " + to_string(transID_)+" |Card Number : " + session_->getCurrCardNumber() + " |Account Number : " + session_->getCurrAccountNumber() + " |Cash " + transactionType_ + " |Amount : " + to_string(amount_) + " |Fee: " + to_string(fee_);
+		string korHistory = "ATM 고유번호 : " + atm_->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |계좌번호 : " + session_->getCurrAccountNumber() + " |" + "현금 입금" + " |금액 : " + to_string(amount_) + " |수수료: " + to_string(fee_);
 		atm_->addTransactionHistoryOfATM(history);
-		session_->addTransactionOfSession(history);
+		if (atm_->isEnglish()) session_->addTransactionOfSession(history);
+		else session_->addTransactionOfSession(korHistory);
 		atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->addTransactionHistoryOfAccount(history);
-		cout << history << endl;
+		//cout << history << endl;
 	}
 	else {
 		string history = "ATM SN: " + atm_->getATMID() + " |TransactionID: " + to_string(transID_) + " |Card Number : " + session_->getCurrCardNumber() + " |Account Number : " + session_->getCurrAccountNumber() + " |Check " + transactionType_ + " |Amount : " + to_string(amount_) + " |Fee: " + to_string(fee_);
+		string korHistory = "ATM 고유번호 : " + atm_->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |계좌번호 : " + session_->getCurrAccountNumber() + " |" + "수표 입금" + " |금액 : " + to_string(amount_) + " |수수료: " + to_string(fee_);
+
 		atm_->addTransactionHistoryOfATM(history);
 		session_->addTransactionOfSession(history);
 		atm_->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->addTransactionHistoryOfAccount(history);
-		cout << history << endl;
+		//cout << history << endl;
 		cout << " \n";
 	}
 }
@@ -689,14 +764,15 @@ bool Transfer::validateReceiverAccounts() {
 		return false;
 	}
 	if (!atm_->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)) {
+		//[4] cout << receiveAccountNumber_ << " account is not found in " << receiveBankName_ << " DB.\n";
 		return false;
 	}
 	string receiver = atm_->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)->getOwnerName();
-	cout << "Is the receiver's name is " << receiver << "? Enter Y for yes, N for no. : ";
+	//[5] cout << "Is the receiver's name is " << receiver << [5-1]"? Enter Y for yes, N for no. : ";
 	string yn;
 	cin >> yn;
 	if (yn == "N") {
-		cout << "Please check account number and bank name of receiver again.\n";
+		//[6]cout << "Please check account number and bank name of receiver again.\n";
 		return false;
 	}
 	return true;
@@ -1172,8 +1248,10 @@ int main() {
 
 	screenShot(accounts, ATMs);
 	
-	map<string, string> biInterface;
-	EngMenu["1"]=
+	
+
+
+
 	bool atmON = true;
 	bool exeStatus = true;
 	while (exeStatus) {
@@ -1239,15 +1317,15 @@ int main() {
 			currSession->execute();
 			screenShot(accounts, ATMs);
 
-			cout << "Enter 'EXIT' to exit this ATM. Enter any key to continue using this ATM. : ";
+			//[2] cout << "Enter 'EXIT' to exit this ATM. Enter any key to continue using this ATM. : ";
 			string exit;
 			cin >> exit;
-			if (exit == "EXIT") break;
+			if (exit == "EXIT" || exit == "나가기") break;
 		}
-		cout << "Enter END to exit this program. Enter any key to continue. : ";
+		//[3]cout << "Enter END to exit this program. Enter any key to continue. : ";
 		string end;
 		cin >> end;
-		if (end == "END") break;
+		if (end == "END" || end == "종료") break;
 	}
 	
 
