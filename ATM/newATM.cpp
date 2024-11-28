@@ -594,6 +594,7 @@ void Deposit::execute() {
 		else {
 			if (atm_->isEnglish()) cout << "Wrong Input. Enter 1 or 2.\n";
 			else cout << "잘못된 입력. 1과 2 중 입력하시오.\n";
+		}
 	}
 	if (isCash_) { //cash deposit
 		long fiftyK;
@@ -764,33 +765,45 @@ bool Transfer::validateReceiverAccounts() {
 		return false;
 	}
 	if (!atm_->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)) {
-		//[4] cout << receiveAccountNumber_ << " account is not found in " << receiveBankName_ << " DB.\n";
+		if (atm_->isEnglish()) cout << receiveAccountNumber_ << " account is not found in " << receiveBankName_ << " DB.\n";
+		else cout << receiveAccountNumber_ << " 계좌는 " << receiveBankName_ << " 데이터베이스에 존재하지 않습니다.\n";
 		return false;
 	}
 	string receiver = atm_->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)->getOwnerName();
-	//[5] cout << "Is the receiver's name is " << receiver << [5-1]"? Enter Y for yes, N for no. : ";
+	if (atm_->isEnglish()) cout << "Is the receiver's name is " << receiver << "? Enter Y for yes, N for no. : ";
+	else cout << "받는 이 성함이 " << receiver << "가 맞습니까? 맞으면 '예', 틀리면 '아니오'를 입력하시오. : ";
 	string yn;
 	cin >> yn;
 	if (yn == "N") {
-		//[6]cout << "Please check account number and bank name of receiver again.\n";
+		if (atm_->isEnglish()) cout << "Please check account number and bank name of receiver again.\n";
+		else cout << "받는 이의 계좌번호와 은행을 다시 한번 확인하십시오.\n";
 		return false;
 	}
 	return true;
 }
 void Transfer:: execute() {
-	cout << "<Transfer>\n";
+	if (atm_->isEnglish()) cout << "<Transfer>\n";
+	else cout << "<송금>\n";
 	int pick = 0;
 	while (pick != 1 && pick != 2) {
-		cout << "Enter 1 for Cash-to-Account Transfer. Enter 2 for Account-to-Account Transfer.: ";
+		if (atm_->isEnglish()) cout << "Enter 1 for Cash-to-Account Transfer. Enter 2 for Account-to-Account Transfer.: ";
+		else cout << "현금 송금은 1, 계좌 이체는 2를 입력하시오. : ";
 		cin >> pick;
 		if (pick == 1) cashToAccount_ = true;
 		else if (pick == 2) cashToAccount_ = false;
-		else cout << "Wrong Input. Enter 1 or 2.\n";
+		else {
+			if (atm_->isEnglish()) cout << "Wrong Input. Enter 1 or 2.\n";
+			else cout << "잘못된 입력. 1과 2 중에 입력하시오.\n";
+		}
 	}
-	cout << "Enter Receiver's Bank: ";
+	if (atm_->isEnglish()) cout << "Enter Receiver's Bank: ";
+	else cout << "받는 이 은행: ";
 	cin >> receiveBankName_;
-	cout << "Enter Receiver's Account Number: ";
+
+	if (atm_->isEnglish()) cout << "Enter Receiver's Account Number: ";
+	else cout << "받는 이 계좌번호: ";
 	cin >> receiveAccountNumber_;
+
 	bool success = validateReceiverAccounts();
 	if (!success) {
 		session_->IsNotActive();
@@ -801,23 +814,30 @@ void Transfer:: execute() {
 		return;
 	}
 	if (cashToAccount_) {
-		cout << "Place the cash to transfer into Slot\n";
-		cout << "KRW 50000 bills: ";
+		if (atm_->isEnglish()) cout << "Place the cash to transfer into Slot\n";
+		else cout << "오만원권: ";
 		long fiftyK;
 		cin >> fiftyK;
-		cout << "KRW 10000 bills: ";
+
+		if (atm_->isEnglish()) cout << "KRW 10000 bills: ";
+		else cout << "만원권: ";
 		long tenK;
 		cin >> tenK;
-		cout << "KRW 5000 bills: ";
+
+		if (atm_->isEnglish()) cout << "KRW 5000 bills: ";
+		else cout << "오천원권: ";
 		long fiveK;
 		cin >> fiveK;
-		cout << "KRW 1000 bills: ";
+
+		if (atm_->isEnglish()) cout << "KRW 1000 bills: ";
+		else cout << "천원권: ";
 		long oneK;
 		cin >> oneK;
 
 		amount_ = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000 - fee_;
 		if (amount_-fee_<=0) {
-			cout << "Insufficient input for transfer.\n";
+			if (atm_->isEnglish()) cout << "Insufficient input for transfer.\n";
+			else cout << "송금할 잔액 부족.\n";
 			session_->IsNotActive();
 			return;
 		}
