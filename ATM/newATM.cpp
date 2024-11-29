@@ -418,10 +418,10 @@ void ATM::screenShot() {
 				long total = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000;
 	
 				cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
-				
-				
 			}
 			cout << endl;
+		}
+		for (Bank* bank : interactableBanks_) {
 			for (Account* acc : bank->getAccounts()) {
 				cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
 			}
@@ -1222,7 +1222,9 @@ void screenShot1(vector<Bank*> banks) {
 				cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
 
 			}
-			cout << endl;
+		}
+		cout << endl;
+		for (Bank* bank : banks) {
 			for (Account* acc : bank->getAccounts()) {
 				cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
 			}
