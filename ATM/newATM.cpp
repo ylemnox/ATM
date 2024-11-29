@@ -34,7 +34,7 @@ public:
 	}
 
 	//Account Management
-	void addAccount(Account* account);
+	//void addAccount(Account* account);
 	Bank& operator+(Account* account);
 	Account* findAccountByNumber(string accountNumber);
 	vector<Account*> findAccountsByOwner(string owner);
@@ -223,9 +223,9 @@ Bank::Bank(string bankName, string korBankName) {
 	bankName_ = bankName;
 	korBankName_ = korBankName;
 }
-void Bank::addAccount(Account* account) {
-	accounts_.push_back(account);
-}
+//void Bank::addAccount(Account* account) {
+//	accounts_.push_back(account);
+//}
 Bank& Bank::operator+(Account* account) {
 	accounts_.push_back(account);
 	return *this; 
@@ -1244,7 +1244,7 @@ int main() {
 	cout << " \n";
 	cout << endl;
 
-	cout << "Account Initialization\n";
+	cout << "<Account Initialization>\n";
 	bool account_status = true;
 	vector<Account*> accounts;  // Vector to store pointers to Account objects
 	while (account_status) {
@@ -1321,7 +1321,7 @@ int main() {
 		}
 	}
 
-	cout << "ATM Initialization\n";
+	cout << "<ATM Initialization>\n";
 	bool ATM_status = true;
 	vector<ATM*> ATMs;  // Vector to store pointers to ATM objects
 	while (ATM_status) {
