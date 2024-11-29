@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <fstream>
+#include <stdexcept>
 using namespace std;
 
 class Bank;
@@ -34,6 +35,7 @@ public:
 
 	//Account Management
 	void addAccount(Account* account);
+	Bank& operator+(Account* account);
 	Account* findAccountByNumber(string accountNumber);
 	vector<Account*> findAccountsByOwner(string owner);
 	Account* findAccountByCardNumber(string cardNumber);
@@ -224,6 +226,10 @@ Bank::Bank(string bankName, string korBankName) {
 void Bank::addAccount(Account* account) {
 	accounts_.push_back(account);
 }
+Bank& Bank::operator+(Account* account) {
+	accounts_.push_back(account);
+	return *this; 
+}
 Account* Bank::findAccountByNumber(string accountNumber)
  {
 	for (Account* acc : accounts_) {
@@ -365,8 +371,6 @@ Bank* ATM::findGetInteractableBank(string bankname) {
 	for (Bank* bank : interactableBanks_) {
 		if (bank->getBankName() == bankname || bank->getKorBankName() == bankname) return bank;
 	}
-	if (isEnglish_) cout << bankname << " is not existing bank\n";
-	else cout << bankname << "은 존재하지 않습니다.\n";
 	return nullptr;
 }
 bool ATM::updateAvailableCash(long fiftyK, long tenK, long fiveK, long oneK) { //input must include +,-
@@ -784,6 +788,7 @@ Transfer::Transfer(Session* session):Transaction(session) {
 	cashToAccount_ = 0;
 }
 bool Transfer::validateReceiverAccounts() {
+	/*
 	if (!session_->getATM()->findGetInteractableBank(receiveBankName_)) {
 		return false;
 	}
@@ -791,19 +796,44 @@ bool Transfer::validateReceiverAccounts() {
 		if (session_->getATM()->isEnglish()) cout << receiveAccountNumber_ << " account is not found in " << receiveBankName_ << " DB.\n";
 		else cout << receiveAccountNumber_ << " 계좌는 " << receiveBankName_ << " 데이터베이스에 존재하지 않습니다.\n";
 		return false;
+	}*/
+	try {
+		// Check if the bank exists
+		auto interactableBank = session_->getATM()->findGetInteractableBank(receiveBankName_);
+		if (!interactableBank) {
+			if (session_->getATM()->isEnglish()) throw runtime_error("Bank " + receiveBankName_ + " not found.");
+			else throw runtime_error(receiveBankName_ + "는 존재하지 않습니다.");
+		}
+
+		// Check if the account exists in the bank
+		auto account = interactableBank->findAccountByNumber(receiveAccountNumber_);
+		if (!account) {
+			if (session_->getATM()->isEnglish()) {
+				throw runtime_error(receiveAccountNumber_ + " account is not found in " + receiveBankName_ + " DB.");
+			}
+			else {
+				throw runtime_error(receiveAccountNumber_ + " 계좌는 " + receiveBankName_ + " 데이터베이스에 존재하지 않습니다.");
+			}
+		}
+
+		string receiver = session_->getATM()->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)->getOwnerName();
+		string korReceiver = session_->getATM()->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)->getKorOwnerName();
+		if (session_->getATM()->isEnglish()) cout << "Is the receiver's name is " << receiver << "? Enter Y for yes, N for no. : ";
+		else cout << "받는 이 성함이 " << korReceiver << "이(가) 맞습니까? 맞으면 '예', 틀리면 '아니오'를 입력하십시오. : ";
+		string yn;
+		cin >> yn;
+		if (yn == "N") {
+			if (session_->getATM()->isEnglish()) cout << "Please check account number and bank name of receiver again.\n";
+			else cout << "받는 이의 계좌번호와 은행을 다시 한번 확인하십시오.\n";
+			return false;
+		}
+		return true;
+
 	}
-	string receiver = session_->getATM()->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)->getOwnerName();
-	string korReceiver = session_->getATM()->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)->getKorOwnerName();
-	if (session_->getATM()->isEnglish()) cout << "Is the receiver's name is " << receiver << "? Enter Y for yes, N for no. : ";
-	else cout << "받는 이 성함이 " << korReceiver << "이(가) 맞습니까? 맞으면 '예', 틀리면 '아니오'를 입력하십시오. : ";
-	string yn;
-	cin >> yn;
-	if (yn == "N") {
-		if (session_->getATM()->isEnglish()) cout << "Please check account number and bank name of receiver again.\n";
-		else cout << "받는 이의 계좌번호와 은행을 다시 한번 확인하십시오.\n";
+	catch (const runtime_error& e) {
+		cout << e.what() << endl;
 		return false;
 	}
-	return true;
 }
 void Transfer:: execute() {
 	if (session_->getATM()->isEnglish()) cout << "<Transfer>\n";
@@ -1260,14 +1290,16 @@ int main() {
 		cin >> pw;
 
 		
-		Account* newAccount = new Account(accbankName, accountNumber, ownerName, korOwnerName, initBalance, pw);
-		accounts.push_back(newAccount);
+		
+		
 
 		// Link account to the bank
 		bool linked = false;
 		for (Bank* bank : banks) {
 			if (bank->getBankName() == accbankName) {
-				bank->addAccount(newAccount);
+				Account* newAccount = new Account(accbankName, accountNumber, ownerName, korOwnerName, initBalance, pw);
+				*bank + newAccount;
+				accounts.push_back(newAccount);
 				linked = true;
 				break;
 			}
