@@ -189,6 +189,7 @@ private:
 	bool isAuthenticated_;
 	ATM* atm_;
 	int withdrawlTimes = 0;
+	long withdrawlAmount_;
 	string currCardNumber_;
 	string currCardBankName_;
 	string currCardAccountNumber_;
@@ -199,6 +200,7 @@ public:
 	void execute();
 	string getCurrCardNumber() { return currCardNumber_; }
 	string getCurrCardBankName() { return currCardBankName_; }
+	long getWithdrawlAmount() { return withdrawlAmount_; }
 	void addTransactionOfSession(string history);
 	void endSession(); //whenever user wants or no cash available
 	//void adMin();
@@ -206,6 +208,7 @@ public:
 
 	string getCurrentSessionCardNumber() { return currCardNumber_; }
 	string getCurrAccountNumber() { return currCardAccountNumber_; }
+	void updateWithdrawlAmount(long amount) { withdrawlAmount_ += amount; }
 	//string getCurrentSessionCardAccountNumber();
 	
 };
@@ -471,6 +474,12 @@ void Withdrawl::execute() {
 	else cout << "인출하고자 하는 현금의 금액을 입력하십시오. (동전 인출 불가) 금액(원): ";
 
 	cin >> amount_;
+	if (session_->getWithdrawlAmount() + amount_ > 500000) {
+		if (atm_->isEnglish()) cout << "Exceeded withdrawl limit per session(KRW 500,000).\n";
+		else cout << "세션 당 인출 금액 한도 초과(500,000원).\n";
+		session_->IsNotActive();
+		return;
+	}
 	if (amount_ < 1000 || amount_ % 1000 != 0) {
 		if (atm_->isEnglish()) cout << "Wrong Input. Only amount that can be dispensed by 1000, 5000, 10000, 50000won bills is allowed.\n";
 		else cout << "잘못된 금액 입력. 천원권, 오천원권, 만원권, 오만원권으로 수령할 수 있는 금액만 허용됩니다.\n";
@@ -510,6 +519,8 @@ void Withdrawl::execute() {
 		session_->IsNotActive();
 		return ;
 	}
+	
+	session_->updateWithdrawlAmount(amount_);
 	atm_->getCardBank(session_->getCurrCardNumber())->updateAccount(transactionType_, session_->getCurrAccountNumber(), amount_+fee_);
 	atm_->updateAvailableCash(-distributeDenom(amount_)["50000won"], -distributeDenom(amount_)["10000won"], -distributeDenom(amount_)["5000won"], -distributeDenom(amount_)["1000won"]);
 	cout << " \n";
@@ -976,6 +987,7 @@ Session::Session(ATM* currentATM, string cardNumber) {
 		wrongPasswordAttempts_ = 0;
 		isAuthenticated_ = false;
 		isActive = true;
+		withdrawlAmount_ = 0;
 	
 	
 
