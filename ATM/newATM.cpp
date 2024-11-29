@@ -21,6 +21,7 @@ private:
 	string bankName_;
 	string korBankName_;
 	vector<Account*> accounts_; //account DB
+	vector<ATM*> atms_;
 public:
 	Bank(string bankName, string KorBankName_);
 	//getter, setter
@@ -33,15 +34,17 @@ public:
 		return korBankName_;
 	}
 
-	//Account Management
-	//void addAccount(Account* account);
 	Bank& operator+(Account* account);
+	Bank& operator+(ATM* atm);
+
 	Account* findAccountByNumber(string accountNumber);
 	vector<Account*> findAccountsByOwner(string owner);
 	Account* findAccountByCardNumber(string cardNumber);
 	string findPasswordOfCard(string cardnumber);
 	void updateAccount(string transactiontype, string accountNumber, long amount);
-	//Bank Fund management
+
+	vector<Account*> getAccounts() { return accounts_; }
+	vector<ATM*>getATMs() { return atms_; }
 };
 class Account {
 private:
@@ -78,7 +81,6 @@ public:
 		if (!this) return "NULL";
 		return cardNumber_; }
 	vector<string> getTransactionHistory() { return transactionHistoryOfAccount_; }
-	//bool isPrimaryBank() const { return (primaryBank_ == 1) ? true : false; }
 
 	//Balance Management
 	void accountBalanceUpdate(string transactionType, long amount);
@@ -100,6 +102,7 @@ private:
 	map<string, long> inputChecks_;
 	vector<Bank*> interactableBanks_;
 	vector<string> transactionHistoryOfATM_;
+	vector<string> kortransactionHistoryOfATM_;
 public:
 	ATM(string atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual,  long fiftyK, long tenK, long fiveK, long oneK, vector<Bank*>interactableBanks);
 	
@@ -121,35 +124,30 @@ public:
 	string getCardPasswordFromBank(string cardNumber);
 	void addTransactionHistoryOfATM(string history);
 	void changeToKorean() { isEnglish_ = false; }
+	void changeToEnglish() { isEnglish_ = true; }
+	void screenShot();
 };
 class Transaction {
 protected:
 	int transID_;
 	string transactionType_;
-	//ATM* atm_ = nullptr;
-	//DateTime timestamp;
-	//TransactionStatus status
 	long amount_;
 	Session* session_;
 	long fee_;
 
 public:
 	static int nextID_;
-	//Transaction(ATM* atm, Session* session);
+
 	Transaction(Session* session);
 	virtual void execute() = 0;
-	//virtual void validate() = 0;
 	virtual bool calculateFee() = 0;
 	virtual void describeAndSave() = 0;
 };
 class Withdrawl :public Transaction {
 private:
 	map<string, long> withdrawlDenominations_;
-	//long totalWithdrawlAmount_;
-	//long fee_;
 	
 public:
-	//Withdrawl(ATM* atm, Session* session);
 	Withdrawl(Session* session);
 	map<string, long> distributeDenom(long amount);
 	void execute() override;
@@ -163,7 +161,6 @@ private:
 	long numOfCashLimit_;
 	long numOfCheckLimit_;
 public:
-	//Deposit(ATM* atm, Session* session);
 	Deposit(Session* session);
 	bool validateDeposit();
 	void execute() override;
@@ -175,8 +172,8 @@ private:
 	bool cashToAccount_; // true: cash->account, false account->account
 	string receiveBankName_;
 	string receiveAccountNumber_;
+
 public:
-	//Transfer(ATM* atm, Session* session);
 	Transfer(Session* session);
 	bool validateReceiverAccounts();
 	void execute() override;
@@ -223,12 +220,13 @@ Bank::Bank(string bankName, string korBankName) {
 	bankName_ = bankName;
 	korBankName_ = korBankName;
 }
-//void Bank::addAccount(Account* account) {
-//	accounts_.push_back(account);
-//}
 Bank& Bank::operator+(Account* account) {
 	accounts_.push_back(account);
 	return *this; 
+}
+Bank& Bank::operator+(ATM* atm) {
+	atms_.push_back(atm);
+	return *this;
 }
 Account* Bank::findAccountByNumber(string accountNumber)
  {
@@ -318,37 +316,7 @@ void Account::addTransactionHistoryOfAccount(string history) {
 }
 //---------------------------------------------------------------------------
 
-/*Card Member Function Defined-----------------------------------------------
-Card::Card(string cardNumber, string cardBankName, string accountNumber, string pw ) {
-	cardNumber_ = cardNumber;
-	cardBankName_ = cardBankName;
-	accountNumber_ = accountNumber;
-	password_ = pw;
-	adminCard_ = false;
-	failedAttempts_ = 0;
-	cout << "Card Constructed | " << "Card Bank: " << cardBankName_ << " |Card Number: " << cardNumber_ << " | Account Number: " << accountNumber_ << endl;
-}
-bool Card::validatePassword(string pw) {
-	if (pw == password_) return true;
-	else {
-		failedAttempts_++;
-		return false;
-	}
-}
-bool Card::isValidForATM(string atmBankName, bool isMultiBankATM) {
-	if (isMultiBankATM) return true;
-	else {
-		if (atmBankName == cardBankName_) return true;
-		else return false;
-	}
-}
-bool Card::isLocked() {
-	if (failedAttempts_ >= 3) return true;
-	else return false;
-}*/
-//---------------------------------------------------------------------------
-
-//ATM Member Function Defined
+//ATM Member Function Defined------------------------------------------------
 ATM::ATM(string atmID, bool singleBank, string bankName, Bank* ownerBank, bool unilingual, long fiftyK, long tenK, long fiveK, long oneK, vector<Bank*> interactableBanks) {
 	atmID_ = atmID;
 	singleBank_ = singleBank;
@@ -411,7 +379,6 @@ bool ATM::isVaildCard(string cardBank) {
 			return true;
 		}
 		else {
-			//cout << "Valid Card\n";
 			return false;
 		}
 	}
@@ -430,14 +397,47 @@ Bank* ATM::getCardBank(string cardNumber) {
 	return nullptr;
 }
 void ATM::addTransactionHistoryOfATM(string history) {
-	transactionHistoryOfATM_.push_back(history);
+	if (isEnglish_) transactionHistoryOfATM_.push_back(history);
+	else kortransactionHistoryOfATM_.push_back(history);
 }	
 string ATM::getCardPasswordFromBank(string cardNumber) {
 	return getCardBank(cardNumber)->findPasswordOfCard(cardNumber);
 }
+void ATM::screenShot() {
+	cout << "Enter / for screenshot: ";
+	char slash;
+	cin >> slash;
+	if (slash == 47) {
+		for (Bank* bank : interactableBanks_) {
+			for (ATM* atm : bank->getATMs()) {
+				long fiftyK = atm->getAvailableCash()["50000won"];
+				long tenK = atm->getAvailableCash()["10000won"];
+				long fiveK = atm->getAvailableCash()["5000won"];
+				long oneK = atm->getAvailableCash()["1000won"];
+				long total = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000;
+				if (isEnglish_) {
+					cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
+				}
+				else {
+					cout << "ATM[고유번호: " << atm->getATMID() << ", 소유은행: " << atm->getOwnerBankName() << ", 현금 보유량: (오만원권: " << fiftyK << ", 만원권: " << tenK << ", 오천원권: " << fiveK << ", 천원권: " << oneK << "]\n";
+				}
+				cout << endl;
+			}
+			for (Account* acc : bank->getAccounts()) {
+				if (isEnglish_) {
+					cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
+				}
+				else {
+					cout << "계좌[은행: " << acc->getAccountBankName() << ", 계좌번호 : " << acc->getAccountNumber() << ", 소유주 : " << acc->getOwnerName() << "] 잔액: " << acc->getBalance() << endl;
+				}
+			}
+		}
+	}
+	return;
+}
 //---------------------------------------------------------------------------
 
-//Transaction Member Function Defined
+//Transaction Member Function Defined----------------------------------------
 int Transaction::nextID_ = 0;
 Transaction::Transaction(Session* session) {
 	transID_ = nextID_++;
@@ -570,9 +570,13 @@ bool Withdrawl::calculateFee() { //update fee
 void Withdrawl::describeAndSave() {
 	string history = "ATM SN: " + session_->getATM()->getATMID() + " |TransactionID: " + to_string(transID_) + " |Card Number : " + session_->getCurrCardNumber() + " |Account Number : " + session_->getCurrAccountNumber() + " |" + transactionType_ + " |Amount : " + to_string(amount_) + " |Fee: " + to_string(fee_);
 	string korHistory = "ATM 고유번호 : " + session_->getATM()->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |계좌번호 : " + session_->getCurrAccountNumber() + " |" + "인출" + " |금액 : " + to_string(amount_) + " |수수료: " + to_string(fee_);
+	//atm
 	session_->getATM()->addTransactionHistoryOfATM(history);
+	session_->getATM()->addTransactionHistoryOfATM(korHistory);
+	//session
 	if (session_->getATM()->isEnglish()) session_->addTransactionOfSession(history);
 	else session_->addTransactionOfSession(korHistory);
+	//account
 	session_->getATM()->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->addTransactionHistoryOfAccount(history);
 	//cout << history << endl;
 	cout << " \n";
@@ -761,18 +765,26 @@ void Deposit::describeAndSave() {
 	if (isCash_) {
 		string history = "ATM SN: " + session_->getATM()->getATMID() + " |TransactionID: " + to_string(transID_)+" |Card Number : " + session_->getCurrCardNumber() + " |Account Number : " + session_->getCurrAccountNumber() + " |Cash " + transactionType_ + " |Amount : " + to_string(amount_) + " |Fee: " + to_string(fee_);
 		string korHistory = "ATM 고유번호 : " + session_->getATM()->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |계좌번호 : " + session_->getCurrAccountNumber() + " |" + "현금 입금" + " |금액 : " + to_string(amount_) + " |수수료: " + to_string(fee_);
+		//atm
 		session_->getATM()->addTransactionHistoryOfATM(history);
+		session_->getATM()->addTransactionHistoryOfATM(korHistory);
+		//session
 		if (session_->getATM()->isEnglish()) session_->addTransactionOfSession(history);
 		else session_->addTransactionOfSession(korHistory);
+		//account
 		session_->getATM()->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->addTransactionHistoryOfAccount(history);
 		//cout << history << endl;
 	}
 	else {
 		string history = "ATM SN: " + session_->getATM()->getATMID() + " |TransactionID: " + to_string(transID_) + " |Card Number : " + session_->getCurrCardNumber() + " |Account Number : " + session_->getCurrAccountNumber() + " |Check " + transactionType_ + " |Amount : " + to_string(amount_) + " |Fee: " + to_string(fee_);
 		string korHistory = "ATM 고유번호 : " + session_->getATM()->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |계좌번호 : " + session_->getCurrAccountNumber() + " |" + "수표 입금" + " |금액 : " + to_string(amount_) + " |수수료: " + to_string(fee_);
-
+		//atm
 		session_->getATM()->addTransactionHistoryOfATM(history);
-		session_->addTransactionOfSession(history);
+		session_->getATM()->addTransactionHistoryOfATM(korHistory);
+		//session
+		if (session_->getATM()->isEnglish()) session_->addTransactionOfSession(history);
+		else session_->addTransactionOfSession(korHistory);
+		//account
 		session_->getATM()->getCardBank(session_->getCurrCardNumber())->findAccountByCardNumber(session_->getCurrCardNumber())->addTransactionHistoryOfAccount(history);
 		//cout << history << endl;
 		cout << " \n";
@@ -976,9 +988,14 @@ void Transfer::describeAndSave() {
 	if (cashToAccount_) {
 		string history = "ATM SN: " + session_->getATM()->getATMID() + " |TransactionID: " + to_string(transID_) + " |Card Number : " + session_->getCurrCardNumber() + " |Receiver Account Number: " + session_->getATM()->findGetInteractableBank(receiveBankName_)->getBankName() + " " + receiveAccountNumber_ + " |" + "Cash " + transactionType_ + " |Amount: " + to_string(amount_) + " |Fee: " + to_string(fee_);
 		string korHistory = "ATM 고유번호 : " + session_->getATM()->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |받는 이 계좌번호 : " + receiveBankName_ + " " + receiveAccountNumber_ + " | " + "현금 송금" + " | 금액 : " + to_string(amount_) + " |수수료 : " + to_string(fee_);
+		//atm history save both
 		session_->getATM()->addTransactionHistoryOfATM(history);
-		if (session_->getATM()->isEnglish()) session_->addTransactionOfSession(history);
-		else session_->addTransactionOfSession(korHistory);
+		session_->getATM()->addTransactionHistoryOfATM(korHistory);
+
+		//Session history saving
+		if (session_->getATM()->isEnglish()) session_->addTransactionOfSession(history);					
+		else session_->addTransactionOfSession(korHistory);				
+	
 
 		string reAccHistory = "Received " + to_string(amount_) + " from " + session_->getCurrCardBankName() + session_->getCurrCardNumber();
 		session_->getATM()->findGetInteractableBank(receiveBankName_)->findAccountByNumber(receiveAccountNumber_)->addTransactionHistoryOfAccount(reAccHistory);
@@ -990,6 +1007,8 @@ void Transfer::describeAndSave() {
 		string history = "ATM SN: " + session_->getATM()->getATMID() + " |TransactionID: " + to_string(transID_) + " |Card Number: " + session_->getCurrCardNumber() + " |Source Account Number : " + session_->getCurrAccountNumber() + " |Receiver Account Number : " + session_->getATM()->findGetInteractableBank(receiveBankName_)->getBankName() +" "+ receiveAccountNumber_ + " |" + "Account " + transactionType_ + " |Amount : " + to_string(amount_) + " |Fee: " + to_string(fee_);
 		string korHistory = "ATM 고유번호 : " + session_->getATM()->getATMID() + " |거래번호 : " + to_string(transID_) + " |카드번호 : " + session_->getCurrCardNumber() + " |보내는 이 계좌번호 : " + session_->getCurrAccountNumber() + "  |받는 이 계좌번호 : " + receiveBankName_+" "+ receiveAccountNumber_ +" | " + "계좌 이체" + " |금액 : " + to_string(amount_) + " |수수료 : " + to_string(fee_);
 		session_->getATM()->addTransactionHistoryOfATM(history);
+		session_->getATM()->addTransactionHistoryOfATM(korHistory);
+
 		if (session_->getATM()->isEnglish()) session_->addTransactionOfSession(history);
 		else session_->addTransactionOfSession(korHistory);
 
@@ -1116,6 +1135,7 @@ void Session::execute() {
 		if (atm_->isEnglish()) cout << "Another Transaction? Press Y / N :";
 		else cout << "다른 거래를 원하십니까? 예/아니오 중 입력하십시오.: ";
 		cin >> cont_;
+		atm_->screenShot();
 	}
 	endSession();
 	return;
@@ -1189,27 +1209,29 @@ void Session::endSession() {
 	}
 }*/
 //---------------------------------------------------------------------------
-void screenShot(vector<Account*> accounts, vector<ATM*>atms) {
+void screenShot1(vector<Bank*> banks) {
 	cout << "Enter / for screenshot: ";
 	char slash;
 	cin >> slash;
 	if (slash == 47) {
-		for (ATM* atm : atms) {
-			long fiftyK = atm->getAvailableCash()["50000won"];
-			long tenK = atm->getAvailableCash()["10000won"];
-			long fiveK = atm->getAvailableCash()["5000won"];
-			long oneK = atm->getAvailableCash()["1000won"];
-			long total = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000;
+		for (Bank* bank : banks) {
+			for (ATM* atm : bank->getATMs()) {
+				long fiftyK = atm->getAvailableCash()["50000won"];
+				long tenK = atm->getAvailableCash()["10000won"];
+				long fiveK = atm->getAvailableCash()["5000won"];
+				long oneK = atm->getAvailableCash()["1000won"];
+				long total = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000;
 
-			cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
-		}
-		for (Account* acc : accounts) {
-			cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
+				cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
+
+			}
+			for (Account* acc : bank->getAccounts()) {
+				cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
+			}
 		}
 	}
 	return;
 }
-
 
 int main() {
 	vector<Bank*> banks;  // Vector to store pointers to Bank objects
@@ -1333,15 +1355,39 @@ int main() {
 
 		cout << "Bank Name: ";
 		cin >> atmbankName;
-		cout << "ATM serial Number(6-digit serial number): ";
+		cout << "ATM SN: ";
 		cin >> atmID;
+		try {
+			int id = stoi(atmID);
+			if (atmID.length() != 6) throw invalid_argument("ATM ID must be exactly 6 digits long");
+			for (ATM* atm : ATMs) {
+				if (atmID == atm->getATMID()) throw runtime_error("ATM with this ID already exists");
+			}
+		}
+		catch (const invalid_argument& e) {
+			cout << "Invalid ATM ID. Please enter a 6-digit number." << endl;
+			continue;
+		}
+		catch (const out_of_range& e) {
+			// Handles cases where the number is too large for an integer
+			cout << "ATM ID is out of valid range" << endl;
+			continue;
+		}
+		catch (const runtime_error& e) {
+			// Handles case where an ATM with the given ID is found
+			cout << e.what() << endl;
+			continue;
+		}
+
+		
 		cout << "Press S for Single Bank ATM, M for Multi Bank ATM: ";
 		cin >> isSingleBank;
 		singleBank = (isSingleBank == "S");
 
 		cout << "Unilingual or Bilingual (Press U for unilingual, B for Bilingual): ";
 		cin >> lingual;
-		unilingual = (lingual == "U");
+		if (lingual == "U") unilingual = true;
+		else unilingual = false;
 
 		cout << "Number of 50000won bill: ";
 		cin >> fiftyK;
@@ -1359,17 +1405,19 @@ int main() {
 				ownerBank = bank;
 			}
 		}
+		ATM* newATM = new ATM(atmID, singleBank, atmbankName, ownerBank, unilingual, fiftyK, tenK, fiveK, oneK, interactableBanks);
+		ATMs.push_back(newATM);
+
+		for (Bank* bank : banks) {
+			if (bank->getBankName() == atmbankName) {
+				*bank + newATM;
+			}
+		}
 
 		if (!ownerBank) {
 			cout << atmbankName << " does not exist.\n";
 			continue;
 		}
-
-
-		ATM* newATM = new ATM(atmID, singleBank, atmbankName, ownerBank, unilingual, fiftyK, tenK, fiveK, oneK, interactableBanks);
-		ATMs.push_back(newATM);
-
-	
 		cout << "---------------------------------------";
 
 		// More addition
@@ -1381,7 +1429,7 @@ int main() {
 		}
 	}
 
-	screenShot(accounts, ATMs);
+	screenShot1(banks);
 
 	bool atmON = true;
 	bool exeStatus = true;
@@ -1404,6 +1452,7 @@ int main() {
 				bool lang;
 				cin >> lang;
 				if (lang == false) currATM->changeToKorean();
+				else currATM->changeToEnglish();
 			}
 			//Start ATM Operation ---------------------------------
 
@@ -1448,7 +1497,7 @@ int main() {
 			Session* currSession = new Session(currATM, cardnumber);
 			currSession->execute();
 			delete currSession;
-			screenShot(accounts, ATMs);
+			screenShot1(banks);
 
 			if (currATM->isEnglish()) cout << "Enter 'EXIT' to exit this ATM. Enter any key to continue using this ATM. : ";
 			else cout << "이 ATM 사용을 중단하려면 '나가기'를 입력하십시오. 계속하려면 아무 키나 누르십시오. : ";
