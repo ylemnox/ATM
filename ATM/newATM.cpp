@@ -408,6 +408,7 @@ void ATM::screenShot() {
 	char slash;
 	cin >> slash;
 	if (slash == 47) {
+		cout << "##----------------------------------------------------##\n";
 		for (Bank* bank : interactableBanks_) {
 			for (ATM* atm : bank->getATMs()) {
 				long fiftyK = atm->getAvailableCash()["50000won"];
@@ -415,23 +416,17 @@ void ATM::screenShot() {
 				long fiveK = atm->getAvailableCash()["5000won"];
 				long oneK = atm->getAvailableCash()["1000won"];
 				long total = fiftyK * 50000 + tenK * 10000 + fiveK * 5000 + oneK * 1000;
-				if (isEnglish_) {
-					cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
-				}
-				else {
-					cout << "ATM[고유번호: " << atm->getATMID() << ", 소유은행: " << atm->getOwnerBankName() << ", 현금 보유량: (오만원권: " << fiftyK << ", 만원권: " << tenK << ", 오천원권: " << fiveK << ", 천원권: " << oneK << "]\n";
-				}
-				cout << endl;
+	
+				cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
+				
+				
 			}
+			cout << endl;
 			for (Account* acc : bank->getAccounts()) {
-				if (isEnglish_) {
-					cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
-				}
-				else {
-					cout << "계좌[은행: " << acc->getAccountBankName() << ", 계좌번호 : " << acc->getAccountNumber() << ", 소유주 : " << acc->getOwnerName() << "] 잔액: " << acc->getBalance() << endl;
-				}
+				cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
 			}
 		}
+		cout << "##----------------------------------------------------##\n";
 	}
 	return;
 }
@@ -1169,9 +1164,10 @@ void Session::endSession() {
 	if (atm_->isEnglish()) cout << "Card Return. Get your card: " << currCardNumber_ << ".\n";
 	else cout<<"카드가 반환되었습니다. 카드를 수령하십시오: " << currCardNumber_ << ".\n";
 	cout << "\n------------------------------\n";
+	if (atm_->isEnglish()) cout << "Transactions During current session:\n";
+	else cout << "현재 세션에서의 모든 거래내역:\n";
 	for (string history : transactionHistoryOfSession) {
-		if (atm_->isEnglish()) cout << "Transactions During current session:\n";
-		else cout << "현재 세션에서의 모든 거래내역:\n";
+
 		cout << history << endl;
 	}
 	isActive = false;
@@ -1214,6 +1210,7 @@ void screenShot1(vector<Bank*> banks) {
 	char slash;
 	cin >> slash;
 	if (slash == 47) {
+		cout << "##----------------------------------------------------##\n";
 		for (Bank* bank : banks) {
 			for (ATM* atm : bank->getATMs()) {
 				long fiftyK = atm->getAvailableCash()["50000won"];
@@ -1225,10 +1222,12 @@ void screenShot1(vector<Bank*> banks) {
 				cout << "ATM[SN: " << atm->getATMID() << ", Bank: " << atm->getOwnerBankName() << ", Remaining Cash: (50000 Won Bills: " << fiftyK << ", 10000 Won Bills: " << tenK << ", 5000 Won Bills: " << fiveK << ", 1000 Won Bills: " << oneK << "]\n";
 
 			}
+			cout << endl;
 			for (Account* acc : bank->getAccounts()) {
 				cout << "Account[Bank: " << acc->getAccountBankName() << ", No : " << acc->getAccountNumber() << ", Owner : " << acc->getOwnerName() << "] balance: " << acc->getBalance() << endl;
 			}
 		}
+		cout << "##----------------------------------------------------##\n";
 	}
 	return;
 }
